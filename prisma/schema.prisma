@@ -1,0 +1,46 @@
+// Prisma schema for TV Goiás news portal
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model News {
+  id          String   @id @default(cuid())
+  title       String
+  summary     String
+  content     String
+  category    String
+  imageUrl    String
+  date        DateTime @default(now())
+  isLive      Boolean  @default(false)
+  isFeatured  Boolean  @default(false) // Card principal do hero
+  isSecondary Boolean  @default(false) // Cards menores do hero
+  isHighlight Boolean  @default(false) // Sidebar "Destaques Notícias"
+  hoursAgo    Int      @default(0)     // "Há X horas"
+  slug        String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Video {
+  id         String   @id @default(cuid())
+  title      String
+  duration   String
+  imageUrl   String
+  youtubeId  String?
+  date       DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Category {
+  id    String @id @default(cuid())
+  name  String
+  icon  String
+  order Int    @default(0)
+}
