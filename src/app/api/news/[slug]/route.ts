@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/requireAuth'
 
 // GET /api/news/[slug] - Detalhe de uma notícia
 export async function GET(
@@ -36,11 +37,14 @@ export async function GET(
   }
 }
 
-// PUT /api/news/[slug] - Atualiza uma notícia
+// PUT /api/news/[slug] - Atualiza uma notícia (requer login)
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  const { response } = await requireAuth()
+  if (response) return response
+
   try {
     const { slug } = await params
     const body = await req.json()
@@ -92,11 +96,14 @@ export async function PUT(
   }
 }
 
-// DELETE /api/news/[slug] - Remove uma notícia
+// DELETE /api/news/[slug] - Remove uma notícia (requer login)
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
+  const { response } = await requireAuth()
+  if (response) return response
+
   try {
     const { slug } = await params
     const existing = await db.news.findUnique({ where: { slug } })

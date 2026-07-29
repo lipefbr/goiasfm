@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/requireAuth'
 
 // GET /api/news - Lista todas as notícias com filtros opcionais
 export async function GET(req: NextRequest) {
@@ -44,8 +45,11 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/news - Cadastra nova notícia
+// POST /api/news - Cadastra nova notícia (requer login)
 export async function POST(req: NextRequest) {
+  const { response } = await requireAuth()
+  if (response) return response
+
   try {
     const body = await req.json()
 

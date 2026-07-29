@@ -1,0 +1,12 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "bun run build",
+  "installCommand": "bun install",
+  "ignoreCommand": "git diff HEAD^ HEAD --quiet ./src ./prisma ./package.json ./next.config.ts",
+  "functions": {
+    "src/app/api/stream/route.ts": {
+      "maxDuration": 30
+    }
+  }
+}

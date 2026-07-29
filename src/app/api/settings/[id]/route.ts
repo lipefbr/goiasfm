@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAuth } from '@/lib/requireAuth'
 
-// PUT /api/settings/[id] - Atualiza uma configuração
+// PUT /api/settings/[id] - Atualiza uma configuração (requer login)
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { response } = await requireAuth()
+  if (response) return response
+
   try {
     const { id } = await params
     const body = await req.json()

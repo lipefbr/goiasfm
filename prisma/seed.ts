@@ -1,5 +1,6 @@
 // Seed script for TV Goiás portal
 import { db } from '../src/lib/db'
+import bcrypt from 'bcryptjs'
 
 async function main() {
   // Clean
@@ -7,6 +8,19 @@ async function main() {
   await db.video.deleteMany()
   await db.category.deleteMany()
   await db.setting.deleteMany()
+  await db.user.deleteMany()
+
+  // ============ USER ADMIN ============
+  const hashedPassword = await bcrypt.hash('admin123', 10)
+  await db.user.create({
+    data: {
+      email: 'admin@tvgoias.com',
+      name: 'Administrador',
+      password: hashedPassword,
+      role: 'admin',
+    },
+  })
+  console.log('Usuário admin criado: admin@tvgoias.com / admin123')
 
   // ============ SETTINGS (link do stream ao vivo) ============
   await db.setting.create({

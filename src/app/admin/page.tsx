@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { useSession, signOut } from 'next-auth/react'
 import {
   Plus,
   Pencil,
@@ -14,6 +15,8 @@ import {
   Video,
   Newspaper,
   ArrowLeft,
+  LogOut,
+  User,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -55,6 +58,14 @@ export default function AdminPage() {
   const [showForm, setShowForm] = useState(false)
   const [savingStream, setSavingStream] = useState(false)
   const [tab, setTab] = useState<'news' | 'stream'>('news')
+  const { data: session, status } = useSession()
+
+  // Redireciona para login se não estiver autenticado
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login?callbackUrl=/admin')
+    }
+  }, [status, router])
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -126,13 +137,32 @@ export default function AdminPage() {
               <p className="text-xs text-gray-400 mt-0.5">Painel de Administração</p>
             </div>
           </div>
-          <Link
-            href="/"
-            className="text-sm font-bold text-white hover:text-[#C8102E] flex items-center gap-1 transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Ver Site
-          </Link>
+          <div className="flex items-center gap-4">
+            <div className="hidden sm:flex items-center gap-2 text-sm text-gray-300">
+              <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center">
+                <User className="w-4 h-4" />
+              </div>
+              <div className="leading-tight">
+                <div className="font-bold text-white text-xs">{session?.user?.name || 'Admin'}</div>
+                <div className="text-[10px] text-gray-500">{session?.user?.email}</div>
+              </div>
+            </div>
+            <Link
+              href="/"
+              className="text-sm font-bold text-white hover:text-[#C8102E] flex items-center gap-1 transition-colors"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span className="hidden sm:inline">Ver Site</span>
+            </Link>
+            <button
+              onClick={() => signOut({ callbackUrl: '/login' })}
+              className="text-sm font-bold text-white hover:text-[#C8102E] flex items-center gap-1 transition-colors"
+              title="Sair"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Sair</span>
+            </button>
+          </div>
         </div>
       </header>
 
