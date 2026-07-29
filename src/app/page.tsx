@@ -7,12 +7,9 @@ import { BlackBar } from '@/components/tvgoias/BlackBar'
 import { VideosSection } from '@/components/tvgoias/VideosSection'
 import { CategoriesSidebar } from '@/components/tvgoias/CategoriesSidebar'
 import { Footer } from '@/components/tvgoias/Footer'
-import { NewsDetailModal } from '@/components/tvgoias/NewsDetailModal'
 import { SearchResults } from '@/components/tvgoias/SearchResults'
-import { AdminForm } from '@/components/tvgoias/AdminForm'
 import { CategoryList } from '@/components/tvgoias/CategoryList'
 import { MaisNoticias } from '@/components/tvgoias/MaisNoticias'
-import { Plus, Home as HomeIcon } from 'lucide-react'
 
 interface NewsItem {
   id: string
@@ -46,34 +43,40 @@ interface CategoryItem {
   order: number
 }
 
+interface Settings {
+  live_stream_url?: string
+  [k: string]: string | undefined
+}
+
 export default function Home() {
   const [news, setNews] = useState<NewsItem[]>([])
   const [videos, setVideos] = useState<VideoItem[]>([])
   const [categories, setCategories] = useState<CategoryItem[]>([])
+  const [settings, setSettings] = useState<Settings>({})
   const [loading, setLoading] = useState(true)
 
-  const [selectedNewsSlug, setSelectedNewsSlug] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState<string | null>(null)
-  const [adminOpen, setAdminOpen] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
-  // Carregar dados iniciais
   const loadData = useCallback(async () => {
     setLoading(true)
     try {
-      const [newsRes, videosRes, catRes] = await Promise.all([
+      const [newsRes, videosRes, catRes, settingsRes] = await Promise.all([
         fetch('/api/news'),
         fetch('/api/videos'),
         fetch('/api/categories'),
+        fetch('/api/settings'),
       ])
-      const [newsData, videosData, catData] = await Promise.all([
+      const [newsData, videosData, catData, settingsData] = await Promise.all([
         newsRes.json(),
         videosRes.json(),
         catRes.json(),
+        settingsRes.json(),
       ])
       setNews(newsData.news || [])
       setVideos(videosData.videos || [])
       setCategories(catData.categories || [])
+      setSettings(settingsData.settings || {})
     } catch (e) {
       console.error('Erro ao carregar dados:', e)
     } finally {
@@ -85,37 +88,25 @@ export default function Home() {
     loadData()
   }, [loadData])
 
-  // Sync com URL (?noticia=slug, ?busca=term, ?categoria=name, ?admin=1)
+  // Sync URL (?busca=term, ?categoria=name)
   useEffect(() => {
     if (typeof window === 'undefined') return
     const params = new URLSearchParams(window.location.search)
-    const noticia = params.get('noticia')
     const busca = params.get('busca')
     const categoria = params.get('categoria')
-    const admin = params.get('admin')
-    if (noticia) setSelectedNewsSlug(noticia)
     if (busca) setSearchQuery(busca)
     if (categoria) setSelectedCategory(categoria)
-    if (admin === '1') setAdminOpen(true)
   }, [])
 
-  // Manter URL atualizada
   useEffect(() => {
     if (typeof window === 'undefined') return
     const params = new URLSearchParams()
-    if (selectedNewsSlug) params.set('noticia', selectedNewsSlug)
     if (searchQuery) params.set('busca', searchQuery)
     if (selectedCategory) params.set('categoria', selectedCategory)
-    if (adminOpen) params.set('admin', '1')
     const qs = params.toString()
     const newUrl = qs ? `?${qs}` : window.location.pathname
     window.history.replaceState({}, '', newUrl)
-  }, [selectedNewsSlug, searchQuery, selectedCategory, adminOpen])
-
-  const handleOpenNews = useCallback((slug: string) => {
-    setSelectedNewsSlug(slug)
-    window.scrollTo({ top: 0, behavior: 'smooth' })
-  }, [])
+  }, [searchQuery, selectedCategory])
 
   const handleSearch = useCallback((q: string) => {
     setSearchQuery(q)
@@ -138,15 +129,7 @@ export default function Home() {
       document.getElementById('videos-section')?.scrollIntoView({ behavior: 'smooth' })
       return
     }
-    if (section === 'contato') {
-      document.getElementById('mais-noticias-section')?.scrollIntoView({ behavior: 'smooth' })
-      return
-    }
-    if (section === 'quem-somos') {
-      document.getElementById('mais-noticias-section')?.scrollIntoView({ behavior: 'smooth' })
-      return
-    }
-    if (section === 'radio') {
+    if (section === 'contato' || section === 'quem-somos' || section === 'radio') {
       document.getElementById('mais-noticias-section')?.scrollIntoView({ behavior: 'smooth' })
       return
     }
@@ -158,17 +141,8 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }, [])
 
-  const featured = news.find((n) => n.isFeatured) || news[0] || null
-  const secondary = news.filter((n) => n.isSecondary).slice(0, 2)
-  const highlights = news.filter((n) => n.isHighlight).slice(0, 4)
-
-  // "Mais notícias": tudo que NÃO está no hero (featured, secondary, highlights)
-  const heroSlugs = new Set([
-    ...(featured ? [featured.slug] : []),
-    ...secondary.map((n) => n.slug),
-    ...highlights.map((n) => n.slug),
-  ])
-  const maisNoticias = news.filter((n) => !heroSlugs.has(n.slug)).slice(0, 9)
+  // Notícias para a seção "Mais Notícias": todas as notícias
+  const maisNoticias = news
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -179,15 +153,15 @@ export default function Home() {
           <CategoryList
             category={selectedCategory}
             onBack={() => setSelectedCategory(null)}
-            onOpenNews={handleOpenNews}
+            onOpenNews={(slug) => {
+              window.location.href = `/noticia/${slug}`
+            }}
           />
         ) : (
           <>
+            {/* Hero: apenas o player ao vivo */}
             <Hero
-              featured={featured}
-              secondary={secondary}
-              highlights={highlights}
-              onOpenNews={handleOpenNews}
+              liveStreamUrl={settings.live_stream_url || 'http://wz5.dnip.com.br/tvgoias/tvgoias.sdp/playlist.m3u8'}
             />
 
             <BlackBar />
@@ -214,54 +188,22 @@ export default function Home() {
               </div>
             </section>
 
-            {/* Seção Mais Notícias - substitui as seções de texto */}
-            <MaisNoticias news={maisNoticias} onOpenNews={handleOpenNews} />
+            {/* Seção Mais Notícias */}
+            <MaisNoticias news={maisNoticias} />
           </>
         )}
       </main>
 
       <Footer />
 
-      {/* Botão flutuante: voltar ao topo + cadastrar matéria */}
-      {selectedCategory && (
-        <button
-          onClick={() => setSelectedCategory(null)}
-          className="fixed bottom-6 left-6 z-40 w-12 h-12 rounded-full bg-black hover:bg-gray-800 flex items-center justify-center text-white shadow-lg transition-colors"
-          aria-label="Voltar ao topo"
-        >
-          <HomeIcon className="w-5 h-5" />
-        </button>
-      )}
-      <button
-        onClick={() => setAdminOpen(true)}
-        className="fixed bottom-6 right-6 z-40 px-5 py-3 rounded-full bg-[#C8102E] hover:bg-[#a50d26] flex items-center gap-2 text-white font-bold text-sm shadow-xl transition-colors"
-        aria-label="Cadastrar nova matéria"
-      >
-        <Plus className="w-5 h-5" />
-        Nova Matéria
-      </button>
-
       {/* Modais */}
-      {selectedNewsSlug && (
-        <NewsDetailModal
-          slug={selectedNewsSlug}
-          onClose={() => setSelectedNewsSlug(null)}
-          onOpenNews={handleOpenNews}
-        />
-      )}
-
       {searchQuery && (
         <SearchResults
           query={searchQuery}
           onClose={() => setSearchQuery(null)}
-          onOpenNews={handleOpenNews}
-        />
-      )}
-
-      {adminOpen && (
-        <AdminForm
-          onClose={() => setAdminOpen(false)}
-          onCreated={() => loadData()}
+          onOpenNews={(slug) => {
+            window.location.href = `/noticia/${slug}`
+          }}
         />
       )}
 

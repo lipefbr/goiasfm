@@ -126,19 +126,24 @@ export function SearchResults({
           {!loading && results.length > 0 && (
             <div className="flex flex-col gap-3">
               {results.map((n) => (
-                <button
+                <a
                   key={n.id}
-                  onClick={() => {
-                    onOpenNews(n.slug)
-                    onClose()
-                  }}
+                  href={`/noticia/${n.slug}`}
+                  onClick={onClose}
                   className="flex items-stretch gap-4 p-3 rounded-lg hover:bg-gray-50 text-left transition-colors group border border-transparent hover:border-gray-200"
                 >
                   <div className="w-28 h-20 shrink-0 rounded overflow-hidden bg-gray-100">
                     <img
-                      src={n.imageUrl}
+                      src={n.imageUrl || 'https://images.unsplash.com/photo-1495020689067-958852a7765e?w=400&q=80'}
                       alt={n.title}
                       className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const img = e.currentTarget
+                        if (!img.dataset.fallback) {
+                          img.dataset.fallback = '1'
+                          img.src = 'https://images.unsplash.com/photo-1495020689067-958852a7765e?w=400&q=80'
+                        }
+                      }}
                     />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -157,7 +162,7 @@ export function SearchResults({
                       )}
                     </div>
                   </div>
-                </button>
+                </a>
               ))}
             </div>
           )}

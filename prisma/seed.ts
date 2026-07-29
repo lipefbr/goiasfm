@@ -6,6 +6,22 @@ async function main() {
   await db.news.deleteMany()
   await db.video.deleteMany()
   await db.category.deleteMany()
+  await db.setting.deleteMany()
+
+  // ============ SETTINGS (link do stream ao vivo) ============
+  await db.setting.create({
+    data: {
+      id: 'live_stream_url',
+      value: 'http://wz5.dnip.com.br/tvgoias/tvgoias.sdp/playlist.m3u8',
+    },
+  })
+
+  await db.setting.create({
+    data: {
+      id: 'site_title',
+      value: 'TV Goiás - Notícias do tamanho da verdade',
+    },
+  })
 
   // ============ NEWS ============
   const news = [
@@ -19,11 +35,11 @@ async function main() {
       imageUrl:
         'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1200&q=80',
       date: new Date('2024-07-23'),
-      isLive: true,
-      isFeatured: true,
+      isLive: false,
+      isFeatured: false,
       isSecondary: false,
       isHighlight: false,
-      hoursAgo: 0,
+      hoursAgo: 1,
       slug: 'goias-crescimento-12-por-cento-servicos',
     },
     {
@@ -281,6 +297,160 @@ async function main() {
       isHighlight: false,
       hoursAgo: 14,
       slug: 'ufg-curso-verao-inscricoes',
+    },
+    // ===== Mais notícias extras para o botão "Ver Mais" =====
+    {
+      title: 'Goiano vence etapa do circuito mundial de surf nas Maldivas',
+      summary:
+        'Atleta de Goiás conquista primeiro título internacional da carreira.',
+      content:
+        'O surfista goiano Lucas Chumbo conquistou nesta segunda-feira a primeira vitória internacional da carreira ao vencer uma etapa do circuito mundial nas Maldivas. O atleta de 24 anos dominou a final com duas ondas de nota 9 e levantou a bandeira do Brasil no pódio.',
+      category: 'Esporte',
+      imageUrl:
+        'https://images.unsplash.com/photo-1502680390469-be75c86b636f?w=600&q=80',
+      date: new Date('2024-07-22'),
+      isLive: false,
+      isFeatured: false,
+      isSecondary: false,
+      isHighlight: false,
+      hoursAgo: 16,
+      slug: 'goiano-vence-surf-maldivas',
+    },
+    {
+      title: 'Câmara aprova projeto que cria ciclofaixa na Av. T-9',
+      summary:
+        'Obra deve ser concluída em 6 meses e vai ligar dois parques da cidade.',
+      content:
+        'A Câmara Municipal de Goiânia aprovou em segundo turno o projeto que cria uma ciclofaixa na Avenida T-9, no Setor Bueno. A obra tem prazo de 6 meses para conclusão e vai ligar o Parque Vaca Brava ao Parque Areião, criando um corredor cicloviário de 4,2 km.',
+      category: 'Cidades',
+      imageUrl:
+        'https://images.unsplash.com/photo-1502744688674-c619d1586c9e?w=600&q=80',
+      date: new Date('2024-07-22'),
+      isLive: false,
+      isFeatured: false,
+      isSecondary: false,
+      isHighlight: false,
+      hoursAgo: 18,
+      slug: 'camara-ciclofaixa-avenida-t9',
+    },
+    {
+      title: 'Inmetro autoriza reajuste de até 5% na tarifa de ônibus em Goiânia',
+      summary:
+        'Novo valor começa a valer a partir do dia 1º de agosto.',
+      content:
+        'O Inmetro autorizou um reajuste de até 5% na tarifa de ônibus em Goiânia. O novo valor, que passará de R$ 5,50 para R$ 5,80, começa a valer a partir do dia 1º de agosto. O reajuste foi justificado pelo aumento dos custos com combustível e manutenção da frota.',
+      category: 'Cidades',
+      imageUrl:
+        'https://images.unsplash.com/photo-1570125909232-eb263c188f7e?w=600&q=80',
+      date: new Date('2024-07-22'),
+      isLive: false,
+      isFeatured: false,
+      isSecondary: false,
+      isHighlight: false,
+      hoursAgo: 20,
+      slug: 'inmetro-reajuste-onibus-goiania',
+    },
+    {
+      title: 'Detran-GO prorroga prazo para renovação de CNH vencida',
+      summary:
+        'Motoristas têm até 31 de agosto para regularizar a habilitação.',
+      content:
+        'O Detran-GO prorrogou até o dia 31 de agosto o prazo para renovação de CNHs vencidas nos meses de março a julho. A medida atende mais de 80 mil motoristas em situação irregular. O processo pode ser feito totalmente online pelo site do Detran.',
+      category: 'Cidades',
+      imageUrl:
+        'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=600&q=80',
+      date: new Date('2024-07-22'),
+      isLive: false,
+      isFeatured: false,
+      isSecondary: false,
+      isHighlight: false,
+      hoursAgo: 22,
+      slug: 'detran-go-prorroga-cnh',
+    },
+    {
+      title: 'Empresários de Goiás pedem redução de impostos em audiência pública',
+      summary:
+        'Fecomércio defende desoneração da folha de pagamento.',
+      content:
+        'Em audiência pública realizada na Assembleia Legislativa, empresários goianos pediram a redução de impostos para estimular a economia do estado. A Fecomércio defendeu a desoneração da folha de pagamento e a simplificação tributária para micro e pequenas empresas.',
+      category: 'Economia',
+      imageUrl:
+        'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=600&q=80',
+      date: new Date('2024-07-22'),
+      isLive: false,
+      isFeatured: false,
+      isSecondary: false,
+      isHighlight: false,
+      hoursAgo: 24,
+      slug: 'empresarios-goias-reducao-impostos',
+    },
+    {
+      title: 'Polícia Militar prende foragido da justiça em Anápolis',
+      summary:
+        'Suspeito era procurado por tráfico de drogas há mais de 2 anos.',
+      content:
+        'A Polícia Militar prendeu na manhã desta segunda-feira em Anápolis um foragido da justiça que era procurado por tráfico de drogas há mais de 2 anos. O suspeito de 32 anos foi localizado em uma casa na periferia da cidade e não ofereceu resistência.',
+      category: 'Polícia',
+      imageUrl:
+        'https://images.unsplash.com/photo-1589992957537-3d2c4c1f5b87?w=600&q=80',
+      date: new Date('2024-07-22'),
+      isLive: false,
+      isFeatured: false,
+      isSecondary: false,
+      isHighlight: false,
+      hoursAgo: 26,
+      slug: 'pm-prende-foragido-anapolis',
+    },
+    {
+      title: 'Concurso público da Prefeitura de Goiânia tem 3,5 mil inscrições',
+      summary:
+        'Vagas são para níveis fundamental, médio e superior.',
+      content:
+        'O concurso público da Prefeitura de Goiânia já registra 3,5 mil inscrições. As vagas são para níveis fundamental, médio e superior, com salários de até R$ 6.500. As inscrições seguem abertas até o dia 15 de agosto pelo site da organizadora.',
+      category: 'Cidades',
+      imageUrl:
+        'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=600&q=80',
+      date: new Date('2024-07-22'),
+      isLive: false,
+      isFeatured: false,
+      isSecondary: false,
+      isHighlight: false,
+      hoursAgo: 28,
+      slug: 'concurso-prefeitura-goiania-inscricoes',
+    },
+    {
+      title: 'Teatro Goiânia recebe espetáculo gratuito neste fim de semana',
+      summary:
+        'Apresentação marca os 80 anos do prédio histórico.',
+      content:
+        'O Teatro Goiânia, um dos mais antigos do estado, recebe neste fim de semana um espetáculo gratuito para marcar os 80 anos do prédio histórico. A apresentação reúne música, dança e teatro e acontece nos dias 27 e 28 de julho, sempre às 19h.',
+      category: 'Entretenimento',
+      imageUrl:
+        'https://images.unsplash.com/photo-1503095396549-807759245b35?w=600&q=80',
+      date: new Date('2024-07-22'),
+      isLive: false,
+      isFeatured: false,
+      isSecondary: false,
+      isHighlight: false,
+      hoursAgo: 30,
+      slug: 'teatro-goiania-espetaculo-gratuito',
+    },
+    {
+      title: 'Câmara dos Deputados aprova Marco Legal das Startups',
+      summary:
+        'Projeto agora segue para sanção presidencial.',
+      content:
+        'A Câmara dos Deputados aprovou nesta segunda-feira o Marco Legal das Startups. O projeto facilita a abertura de empresas de base tecnológica e cria um regime tributário simplificado. A matéria agora segue para sanção presidencial.',
+      category: 'Brasil e Mundo',
+      imageUrl:
+        'https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?w=600&q=80',
+      date: new Date('2024-07-22'),
+      isLive: false,
+      isFeatured: false,
+      isSecondary: false,
+      isHighlight: false,
+      hoursAgo: 32,
+      slug: 'camara-marco-legal-startups',
     },
   ]
 

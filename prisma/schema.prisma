@@ -18,10 +18,10 @@ model News {
   imageUrl    String
   date        DateTime @default(now())
   isLive      Boolean  @default(false)
-  isFeatured  Boolean  @default(false) // Card principal do hero
-  isSecondary Boolean  @default(false) // Cards menores do hero
-  isHighlight Boolean  @default(false) // Sidebar "Destaques Notícias"
-  hoursAgo    Int      @default(0)     // "Há X horas"
+  isFeatured  Boolean  @default(false)
+  isSecondary Boolean  @default(false)
+  isHighlight Boolean  @default(false)
+  hoursAgo    Int      @default(0)
   slug        String   @unique
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -43,4 +43,10 @@ model Category {
   name  String
   icon  String
   order Int    @default(0)
+}
+
+// Configurações gerais do site (link do stream ao vivo, etc.)
+model Setting {
+  id    String @id
+  value String
 }

@@ -89,16 +89,23 @@ export function CategoryList({ category, onBack, onOpenNews }: CategoryListProps
         {!loading && news.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {news.map((n) => (
-              <button
+              <a
                 key={n.id}
-                onClick={() => onOpenNews(n.slug)}
-                className="bg-white rounded-lg overflow-hidden text-left group hover:shadow-lg transition-shadow"
+                href={`/noticia/${n.slug}`}
+                className="bg-white rounded-lg overflow-hidden text-left group hover:shadow-lg transition-shadow block"
               >
                 <div className="aspect-video overflow-hidden bg-gray-100">
                   <img
-                    src={n.imageUrl}
+                    src={n.imageUrl || 'https://images.unsplash.com/photo-1495020689067-958852a7765e?w=600&q=80'}
                     alt={n.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                    onError={(e) => {
+                      const img = e.currentTarget
+                      if (!img.dataset.fallback) {
+                        img.dataset.fallback = '1'
+                        img.src = 'https://images.unsplash.com/photo-1495020689067-958852a7765e?w=600&q=80'
+                      }
+                    }}
                   />
                 </div>
                 <div className="p-4">
@@ -120,7 +127,7 @@ export function CategoryList({ category, onBack, onOpenNews }: CategoryListProps
                     )}
                   </div>
                 </div>
-              </button>
+              </a>
             ))}
           </div>
         )}

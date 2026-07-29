@@ -62,12 +62,28 @@ export async function POST(req: NextRequest) {
       hoursAgo = 0,
     } = body
 
-    if (!title || !summary || !category || !imageUrl) {
+    if (!title || !summary || !category) {
       return NextResponse.json(
-        { error: 'Campos obrigatórios: title, summary, category, imageUrl' },
+        { error: 'Campos obrigatórios: title, summary, category' },
         { status: 400 }
       )
     }
+
+    // Imagem padrão por categoria caso não informada
+    const DEFAULT_IMAGES: Record<string, string> = {
+      'Política': 'https://images.unsplash.com/photo-1518780664697-55e3ad937233?w=600&q=80',
+      'Economia': 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=600&q=80',
+      'Cidades': 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=600&q=80',
+      'Polícia': 'https://images.unsplash.com/photo-1589992966055-69b6f5c2f7be?w=600&q=80',
+      'Educação': 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=600&q=80',
+      'Esporte': 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=600&q=80',
+      'Saúde': 'https://images.unsplash.com/photo-1538108149393-fbbd81895907?w=600&q=80',
+      'Entretenimento': 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&q=80',
+      'Tecnologia': 'https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=600&q=80',
+      'Brasil e Mundo': 'https://images.unsplash.com/photo-1517292987719-0369a794ec0f?w=600&q=80',
+    }
+    const finalImageUrl =
+      imageUrl || DEFAULT_IMAGES[category] || 'https://images.unsplash.com/photo-1495020689067-958852a7765e?w=600&q=80'
 
     const slugBase = title
       .toLowerCase()
@@ -83,7 +99,7 @@ export async function POST(req: NextRequest) {
         summary,
         content: content || summary,
         category,
-        imageUrl,
+        imageUrl: finalImageUrl,
         isLive,
         isFeatured,
         isSecondary,

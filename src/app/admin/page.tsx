@@ -1,0 +1,581 @@
+'use client'
+
+import { useEffect, useState, useCallback } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  X,
+  Save,
+  Loader2,
+  CheckCircle,
+  Video,
+  Newspaper,
+  ArrowLeft,
+} from 'lucide-react'
+import { toast } from 'sonner'
+
+interface NewsItem {
+  id: string
+  title: string
+  summary: string
+  content: string
+  category: string
+  imageUrl: string
+  date: string
+  isLive: boolean
+  isFeatured: boolean
+  isSecondary: boolean
+  isHighlight: boolean
+  hoursAgo: number
+  slug: string
+}
+
+const CATEGORIES = [
+  'Política',
+  'Economia',
+  'Cidades',
+  'Polícia',
+  'Educação',
+  'Esporte',
+  'Saúde',
+  'Entretenimento',
+  'Tecnologia',
+  'Brasil e Mundo',
+]
+
+export default function AdminPage() {
+  const router = useRouter()
+  const [news, setNews] = useState<NewsItem[]>([])
+  const [liveStreamUrl, setLiveStreamUrl] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [editingSlug, setEditingSlug] = useState<string | null>(null)
+  const [showForm, setShowForm] = useState(false)
+  const [savingStream, setSavingStream] = useState(false)
+  const [tab, setTab] = useState<'news' | 'stream'>('news')
+
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    try {
+      const [newsRes, settingsRes] = await Promise.all([
+        fetch('/api/news'),
+        fetch('/api/settings'),
+      ])
+      const [newsData, settingsData] = await Promise.all([
+        newsRes.json(),
+        settingsRes.json(),
+      ])
+      setNews(newsData.news || [])
+      setLiveStreamUrl(settingsData.settings?.live_stream_url || '')
+    } catch (e) {
+      console.error('Erro ao carregar dados:', e)
+      toast.error('Erro ao carregar dados')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
+
+  async function handleDelete(slug: string, title: string) {
+    if (!confirm(`Excluir a notícia "${title}"?`)) return
+    try {
+      const res = await fetch(`/api/news/${slug}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Falha ao deletar')
+      toast.success('Notícia excluída')
+      loadData()
+    } catch (e) {
+      console.error(e)
+      toast.error('Erro ao excluir')
+    }
+  }
+
+  async function handleSaveStream() {
+    setSavingStream(true)
+    try {
+      const res = await fetch('/api/settings/live_stream_url', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: liveStreamUrl }),
+      })
+      if (!res.ok) throw new Error('Falha ao salvar')
+      toast.success('Link do stream ao vivo atualizado!')
+    } catch (e) {
+      console.error(e)
+      toast.error('Erro ao salvar link')
+    } finally {
+      setSavingStream(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header admin */}
+      <header className="bg-black text-white sticky top-0 z-30">
+        <div className="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-[#C8102E] flex items-center justify-center">
+              <span className="text-white font-black text-lg">G</span>
+            </div>
+            <div>
+              <h1 className="font-black text-lg leading-none">TV Goiás Admin</h1>
+              <p className="text-xs text-gray-400 mt-0.5">Painel de Administração</p>
+            </div>
+          </div>
+          <Link
+            href="/"
+            className="text-sm font-bold text-white hover:text-[#C8102E] flex items-center gap-1 transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Ver Site
+          </Link>
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-7xl px-4 py-8">
+        {/* Tabs */}
+        <div className="flex gap-2 mb-6 border-b border-gray-200">
+          <button
+            onClick={() => setTab('news')}
+            className={`px-5 py-3 font-bold text-sm border-b-2 transition-colors flex items-center gap-2 ${
+              tab === 'news'
+                ? 'border-[#C8102E] text-[#C8102E]'
+                : 'border-transparent text-gray-500 hover:text-black'
+            }`}
+          >
+            <Newspaper className="w-4 h-4" />
+            Notícias ({news.length})
+          </button>
+          <button
+            onClick={() => setTab('stream')}
+            className={`px-5 py-3 font-bold text-sm border-b-2 transition-colors flex items-center gap-2 ${
+              tab === 'stream'
+                ? 'border-[#C8102E] text-[#C8102E]'
+                : 'border-transparent text-gray-500 hover:text-black'
+            }`}
+          >
+            <Video className="w-4 h-4" />
+            Vídeo Ao Vivo
+          </button>
+        </div>
+
+        {/* Tab: Notícias */}
+        {tab === 'news' && (
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-black text-black">Gerenciar Notícias</h2>
+              <button
+                onClick={() => {
+                  setEditingSlug(null)
+                  setShowForm(true)
+                }}
+                className="px-5 py-2.5 rounded-full bg-[#C8102E] hover:bg-[#a50d26] text-white font-bold text-sm flex items-center gap-2 transition-colors shadow"
+              >
+                <Plus className="w-4 h-4" />
+                Nova Notícia
+              </button>
+            </div>
+
+            {loading ? (
+              <div className="py-12 text-center">
+                <Loader2 className="w-8 h-8 border-4 border-[#C8102E] border-t-transparent rounded-full animate-spin mx-auto" />
+              </div>
+            ) : news.length === 0 ? (
+              <div className="py-12 text-center bg-white rounded-lg">
+                <p className="text-gray-500">Nenhuma notícia cadastrada.</p>
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg overflow-hidden shadow-sm">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="text-left text-xs font-bold text-gray-500 uppercase tracking-wider px-4 py-3">Notícia</th>
+                      <th className="text-left text-xs font-bold text-gray-500 uppercase tracking-wider px-4 py-3 hidden md:table-cell">Categoria</th>
+                      <th className="text-left text-xs font-bold text-gray-500 uppercase tracking-wider px-4 py-3 hidden lg:table-cell">Data</th>
+                      <th className="text-right text-xs font-bold text-gray-500 uppercase tracking-wider px-4 py-3">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {news.map((n) => (
+                      <tr key={n.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 rounded overflow-hidden bg-gray-100 shrink-0">
+                              <img
+                                src={n.imageUrl}
+                                alt={n.title}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  const img = e.currentTarget
+                                  if (!img.dataset.fallback) {
+                                    img.dataset.fallback = '1'
+                                    img.src = 'https://images.unsplash.com/photo-1495020689067-958852a7765e?w=100&q=80'
+                                  }
+                                }}
+                              />
+                            </div>
+                            <div className="min-w-0">
+                              <a
+                                href={`/noticia/${n.slug}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-bold text-sm text-black hover:text-[#C8102E] line-clamp-1 transition-colors"
+                              >
+                                {n.title}
+                              </a>
+                              <p className="text-xs text-gray-500 line-clamp-1">{n.summary}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 hidden md:table-cell">
+                          <span className="inline-block bg-[#C8102E]/10 text-[#C8102E] text-xs font-bold px-2 py-1 rounded">
+                            {n.category}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 hidden lg:table-cell text-xs text-gray-500">
+                          {new Date(n.date).toLocaleDateString('pt-BR')}
+                          {n.hoursAgo > 0 && <span className="ml-2">Há {n.hoursAgo}h</span>}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => {
+                                setEditingSlug(n.slug)
+                                setShowForm(true)
+                              }}
+                              className="p-2 rounded hover:bg-gray-100 text-gray-600 hover:text-[#C8102E] transition-colors"
+                              aria-label="Editar"
+                              title="Editar"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(n.slug, n.title)}
+                              className="p-2 rounded hover:bg-red-50 text-gray-600 hover:text-red-600 transition-colors"
+                              aria-label="Excluir"
+                              title="Excluir"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tab: Stream ao vivo */}
+        {tab === 'stream' && (
+          <div className="max-w-2xl">
+            <h2 className="text-xl font-black text-black mb-2">Vídeo Ao Vivo</h2>
+            <p className="text-gray-600 text-sm mb-6">
+              Configure o link do stream ao vivo que aparece no topo da página inicial.
+              Suportado: HLS (.m3u8), HTTP FLV, RTMP (via player compatível).
+            </p>
+
+            <div className="bg-white rounded-lg p-6 shadow-sm">
+              <label className="block text-sm font-bold text-black mb-2">
+                URL do Stream Ao Vivo (HLS .m3u8)
+              </label>
+              <input
+                type="url"
+                value={liveStreamUrl}
+                onChange={(e) => setLiveStreamUrl(e.target.value)}
+                placeholder="http://exemplo.com/stream/playlist.m3u8"
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-[#C8102E] font-mono text-sm"
+              />
+
+              <div className="mt-4 p-4 bg-gray-50 rounded text-xs text-gray-600 space-y-2">
+                <p className="font-bold text-gray-700">Exemplos de streams:</p>
+                <p><code className="bg-white px-1 rounded">http://wz5.dnip.com.br/tvgoias/tvgoias.sdp/playlist.m3u8</code> (HLS atual)</p>
+                <p><code className="bg-white px-1 rounded">https://example.com/live/stream.m3u8</code> (genérico HLS)</p>
+              </div>
+
+              <div className="flex items-center justify-end mt-6">
+                <button
+                  onClick={handleSaveStream}
+                  disabled={savingStream}
+                  className="px-6 py-2.5 rounded-full bg-[#C8102E] hover:bg-[#a50d26] text-white font-bold text-sm flex items-center gap-2 transition-colors disabled:opacity-60 shadow"
+                >
+                  {savingStream ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Save className="w-4 h-4" />
+                  )}
+                  {savingStream ? 'Salvando...' : 'Salvar Link'}
+                </button>
+              </div>
+            </div>
+
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded text-sm text-blue-800">
+              <strong>Dica:</strong> O stream é reproduzido via HLS.js, compatível com
+              Chrome, Firefox, Edge e Safari. Para transmissões ao vivo, mantenha o
+              formato <code className="bg-white px-1 rounded">.m3u8</code>.
+            </div>
+          </div>
+        )}
+      </main>
+
+      {/* Formulário modal */}
+      {showForm && (
+        <NewsForm
+          slug={editingSlug}
+          onClose={() => {
+            setShowForm(false)
+            setEditingSlug(null)
+          }}
+          onSaved={() => {
+            setShowForm(false)
+            setEditingSlug(null)
+            loadData()
+          }}
+        />
+      )}
+    </div>
+  )
+}
+
+// =================== Formulário de Notícia ===================
+interface NewsFormProps {
+  slug: string | null
+  onClose: () => void
+  onSaved: () => void
+}
+
+function NewsForm({ slug, onClose, onSaved }: NewsFormProps) {
+  const [title, setTitle] = useState('')
+  const [summary, setSummary] = useState('')
+  const [content, setContent] = useState('')
+  const [category, setCategory] = useState(CATEGORIES[0])
+  const [imageUrl, setImageUrl] = useState('')
+  const [hoursAgo, setHoursAgo] = useState(1)
+  const [loading, setLoading] = useState(false)
+  const [loadingData, setLoadingData] = useState(!!slug)
+  const [success, setSuccess] = useState(false)
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = ''
+    }
+  }, [onClose])
+
+  // Carregar dados se for edição
+  useEffect(() => {
+    if (!slug) return
+    setLoadingData(true)
+    fetch(`/api/news/${slug}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const n = d.news
+        setTitle(n.title)
+        setSummary(n.summary)
+        setContent(n.content)
+        setCategory(n.category)
+        setImageUrl(n.imageUrl)
+        setHoursAgo(n.hoursAgo)
+      })
+      .catch((e) => {
+        console.error(e)
+        toast.error('Erro ao carregar notícia')
+        onClose()
+      })
+      .finally(() => setLoadingData(false))
+  }, [slug, onClose])
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!title || !summary || !category) {
+      toast.error('Preencha os campos obrigatórios')
+      return
+    }
+    setLoading(true)
+    try {
+      const isEdit = !!slug
+      const url = isEdit ? `/api/news/${slug}` : '/api/news'
+      const method = isEdit ? 'PUT' : 'POST'
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          summary,
+          content,
+          category,
+          imageUrl,
+          hoursAgo,
+        }),
+      })
+      if (!res.ok) throw new Error('Falha ao salvar')
+      setSuccess(true)
+      toast.success(isEdit ? 'Notícia atualizada!' : 'Notícia cadastrada!')
+      setTimeout(() => onSaved(), 1200)
+    } catch (err) {
+      console.error(err)
+      toast.error('Erro ao salvar notícia')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] bg-black/70 flex items-start justify-center overflow-y-auto"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white w-full max-w-2xl my-8 mx-4 rounded-lg overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="bg-[#C8102E] px-6 py-4 flex items-center justify-between">
+          <h2 className="text-white font-black text-lg">
+            {slug ? 'Editar Notícia' : 'Nova Notícia'}
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-1 text-white/90 hover:text-white"
+            aria-label="Fechar"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {loadingData ? (
+          <div className="p-12 text-center">
+            <Loader2 className="w-8 h-8 border-4 border-[#C8102E] border-t-transparent rounded-full animate-spin mx-auto" />
+          </div>
+        ) : success ? (
+          <div className="p-12 text-center">
+            <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
+            <p className="text-black font-bold text-lg">
+              {slug ? 'Notícia atualizada com sucesso!' : 'Notícia cadastrada com sucesso!'}
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+            <div>
+              <label className="block text-sm font-bold text-black mb-1">Título *</label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+                placeholder="Digite o título da notícia"
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-[#C8102E]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-black mb-1">Resumo *</label>
+              <textarea
+                value={summary}
+                onChange={(e) => setSummary(e.target.value)}
+                required
+                rows={2}
+                placeholder="Resumo curto da notícia"
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-[#C8102E]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-black mb-1">Conteúdo Completo</label>
+              <textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                rows={6}
+                placeholder="Texto completo da notícia (parágrafos separados por linha em branco)"
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-[#C8102E]"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-bold text-black mb-1">Categoria *</label>
+                <select
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-[#C8102E]"
+                >
+                  {CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-black mb-1">Há quantas horas? *</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={hoursAgo}
+                  onChange={(e) => setHoursAgo(parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-[#C8102E]"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-bold text-black mb-1">
+                URL da Imagem <span className="text-gray-500 font-normal text-xs">(opcional - usa padrão por categoria)</span>
+              </label>
+              <input
+                type="url"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                placeholder="https://... (deixe vazio para usar imagem padrão)"
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-[#C8102E]"
+              />
+              {imageUrl ? (
+                <div className="mt-2 aspect-video rounded overflow-hidden bg-gray-100">
+                  <img
+                    src={imageUrl}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              ) : (
+                <p className="text-xs text-gray-500 mt-1">
+                  Vai usar imagem automática para a categoria <strong>{category}</strong>.
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-gray-200 sticky bottom-0 bg-white">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-5 py-2 rounded text-sm font-bold text-black hover:bg-gray-100 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-6 py-2 rounded bg-[#C8102E] hover:bg-[#a50d26] text-white text-sm font-bold flex items-center gap-2 transition-colors disabled:opacity-60"
+              >
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
+                {loading ? 'Salvando...' : slug ? 'Salvar Alterações' : 'Publicar'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
