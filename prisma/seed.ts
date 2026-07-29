@@ -128,6 +128,160 @@ async function main() {
       hoursAgo: 5,
       slug: 'atletico-go-vence-afasta-rebaixamento',
     },
+    // ===== Mais notícias para a seção inferior =====
+    {
+      title: 'Goiânia registra novo recorde de temperatura no verão',
+      summary:
+        'Termômetros passaram dos 38°C e batem recorde histórico para o mês.',
+      content:
+        'Goiânia registrou nesta terça-feira um novo recorde de temperatura para o mês, com termômetros passando dos 38°C. Segundo o Instituto Nacional de Meteorologia (Inmet), a previsão é de que as altas temperaturas se mantenham pelos próximos dias. A orientação é de hidratação constante e evitar exposição ao sol entre 10h e 16h.',
+      category: 'Cidades',
+      imageUrl:
+        'https://images.unsplash.com/photo-1504370805625-d32af4583c8a?w=600&q=80',
+      date: new Date('2024-07-23'),
+      isLive: false,
+      isFeatured: false,
+      isSecondary: false,
+      isHighlight: false,
+      hoursAgo: 6,
+      slug: 'goiania-recorde-temperatura-verao',
+    },
+    {
+      title: 'Novo hospital é inaugurado em Anápolis',
+      summary:
+        'Unidade conta com 80 leitos e vai atender mais de 200 mil habitantes.',
+      content:
+        'Foi inaugurado nesta segunda-feira em Anápolis, na região metropolitana de Goiânia, um novo hospital público com 80 leitos. A unidade vai atender mais de 200 mil habitantes da região e conta com emergência, centro cirúrgico e UTI. O investimento foi de R$ 35 milhões.',
+      category: 'Saúde',
+      imageUrl:
+        'https://images.unsplash.com/photo-1538108149393-fbbd81895907?w=600&q=80',
+      date: new Date('2024-07-23'),
+      isLive: false,
+      isFeatured: false,
+      isSecondary: false,
+      isHighlight: false,
+      hoursAgo: 7,
+      slug: 'novo-hospital-anapolis-inaugurado',
+    },
+    {
+      title: 'Feira de tecnologia reúne startups goianas em Goiânia',
+      summary:
+        'Evento traz mais de 100 expositores e espera receber 20 mil visitantes.',
+      content:
+        'A maior feira de tecnologia do Centro-Oeste começou nesta terça-feira em Goiânia. O evento reúne mais de 100 startups goianas e espera receber 20 mil visitantes ao longo de três dias. Há palestras, workshops e espaços de networking para empreendedores e investidores.',
+      category: 'Tecnologia',
+      imageUrl:
+        'https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=600&q=80',
+      date: new Date('2024-07-23'),
+      isLive: false,
+      isFeatured: false,
+      isSecondary: false,
+      isHighlight: false,
+      hoursAgo: 8,
+      slug: 'feira-tecnologia-startups-goianas',
+    },
+    {
+      title: 'Festival de cinema goiano abre inscrições para curtas',
+      summary:
+        'Produtos audiovisuais podem ser inscritos até o dia 30 de agosto.',
+      content:
+        'O Festival de Cinema de Goiás abriu as inscrições para a mostra competitiva de curtas-metragens. Produtores audiovisuais do estado podem inscrever suas obras até o dia 30 de agosto. As obras selecionadas serão exibidas em sessões gratuitas em Goiânia e no interior.',
+      category: 'Entretenimento',
+      imageUrl:
+        'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&q=80',
+      date: new Date('2024-07-23'),
+      isLive: false,
+      isFeatured: false,
+      isSecondary: false,
+      isHighlight: false,
+      hoursAgo: 9,
+      slug: 'festival-cinema-goiano-inscricoes-curtas',
+    },
+    {
+      title: 'Governo de Goiás anuncia pacote de obras para o interior',
+      summary:
+        'Investimento de R$ 500 milhões contempla 50 municípios goianos.',
+      content:
+        'O governador de Goiás anunciou nesta terça-feira um pacote de obras para o interior do estado, com investimento de R$ 500 milhões. O programa contempla 50 municípios goianos e prevê pavimentação, saneamento e construção de escolas e unidades de saúde.',
+      category: 'Política',
+      imageUrl:
+        'https://images.unsplash.com/photo-1486325212027-8081e485255e?w=600&q=80',
+      date: new Date('2024-07-23'),
+      isLive: false,
+      isFeatured: false,
+      isSecondary: false,
+      isHighlight: false,
+      hoursAgo: 10,
+      slug: 'governo-goias-obras-interior',
+    },
+    {
+      title: 'Volkswagen anuncia ampliação de fábrica em Taubaté',
+      summary:
+        'Investimento de R$ 1,2 bilhão deve gerar 800 empregos diretos.',
+      content:
+        'A Volkswagen anunciou a ampliação de sua fábrica em Taubaté, com investimento de R$ 1,2 bilhão. A expansão deve gerar 800 empregos diretos e outros 2.000 indiretos. A produção de um novo modelo compacto está prevista para começar em 2026.',
+      category: 'Economia',
+      imageUrl:
+        'https://images.unsplash.com/photo-1583121274602-3e2820c69888?w=600&q=80',
+      date: new Date('2024-07-23'),
+      isLive: false,
+      isFeatured: false,
+      isSecondary: false,
+      isHighlight: false,
+      hoursAgo: 11,
+      slug: 'volkswagen-ampliacao-fabrica-taubate',
+    },
+    {
+      title: 'Brasil sediará Copa do Mundo de futebol feminino em 2027',
+      summary:
+        'País foi escolhido por unanimidade em votação da FIFA nesta semana.',
+      content:
+        'O Brasil foi escolhido por unanimidade para sediar a Copa do Mundo de futebol feminino de 2027. A decisão foi tomada pela FIFA em votação realizada nesta semana. Será a primeira vez que o país receberá o torneio feminino, com jogos previstos em várias cidades.',
+      category: 'Brasil e Mundo',
+      imageUrl:
+        'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=600&q=80',
+      date: new Date('2024-07-23'),
+      isLive: false,
+      isFeatured: false,
+      isSecondary: false,
+      isHighlight: false,
+      hoursAgo: 12,
+      slug: 'brasil-sede-copa-mundo-feminino-2027',
+    },
+    {
+      title: 'PRF recupera carga roubada avaliada em R$ 2 milhões em GO',
+      summary:
+        'Caminhão foi interceptado na BR-060 após perseguição de 30 km.',
+      content:
+        'A Polícia Rodoviária Federal recuperou nesta terça-feira uma carga roubada avaliada em R$ 2 milhões na BR-060, em Goiás. O caminhão foi interceptado após uma perseguição de 30 km. Dois suspeitos foram presos e a carga será devolvida à empresa de logística.',
+      category: 'Polícia',
+      imageUrl:
+        'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=600&q=80',
+      date: new Date('2024-07-23'),
+      isLive: false,
+      isFeatured: false,
+      isSecondary: false,
+      isHighlight: false,
+      hoursAgo: 13,
+      slug: 'prf-recupera-carga-roubada-br-060',
+    },
+    {
+      title: 'Universidade Federal de Goiás abre vagas para curso de verão',
+      summary:
+        'Inscrições vão até 10 de agosto para cursos gratuitos de extensão.',
+      content:
+        'A Universidade Federal de Goiás (UFG) abriu as inscrições para o curso de verão, que oferece disciplinas gratuitas de extensão para a comunidade. As inscrições vão até o dia 10 de agosto e as aulas começam em setembro. Há opções nas áreas de humanidades, exatas e biológicas.',
+      category: 'Educação',
+      imageUrl:
+        'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=600&q=80',
+      date: new Date('2024-07-23'),
+      isLive: false,
+      isFeatured: false,
+      isSecondary: false,
+      isHighlight: false,
+      hoursAgo: 14,
+      slug: 'ufg-curso-verao-inscricoes',
+    },
   ]
 
   for (const n of news) {

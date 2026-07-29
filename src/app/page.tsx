@@ -11,6 +11,7 @@ import { NewsDetailModal } from '@/components/tvgoias/NewsDetailModal'
 import { SearchResults } from '@/components/tvgoias/SearchResults'
 import { AdminForm } from '@/components/tvgoias/AdminForm'
 import { CategoryList } from '@/components/tvgoias/CategoryList'
+import { MaisNoticias } from '@/components/tvgoias/MaisNoticias'
 import { Plus, Home as HomeIcon } from 'lucide-react'
 
 interface NewsItem {
@@ -130,7 +131,7 @@ export default function Home() {
     }
     if (section === 'noticias') {
       setSelectedCategory(null)
-      document.getElementById('videos-section')?.scrollIntoView({ behavior: 'smooth' })
+      document.getElementById('mais-noticias-section')?.scrollIntoView({ behavior: 'smooth' })
       return
     }
     if (section === 'videos') {
@@ -138,15 +139,15 @@ export default function Home() {
       return
     }
     if (section === 'contato') {
-      document.getElementById('contato-section')?.scrollIntoView({ behavior: 'smooth' })
+      document.getElementById('mais-noticias-section')?.scrollIntoView({ behavior: 'smooth' })
       return
     }
     if (section === 'quem-somos') {
-      document.getElementById('quem-somos-section')?.scrollIntoView({ behavior: 'smooth' })
+      document.getElementById('mais-noticias-section')?.scrollIntoView({ behavior: 'smooth' })
       return
     }
     if (section === 'radio') {
-      document.getElementById('radio-section')?.scrollIntoView({ behavior: 'smooth' })
+      document.getElementById('mais-noticias-section')?.scrollIntoView({ behavior: 'smooth' })
       return
     }
   }, [])
@@ -160,6 +161,14 @@ export default function Home() {
   const featured = news.find((n) => n.isFeatured) || news[0] || null
   const secondary = news.filter((n) => n.isSecondary).slice(0, 2)
   const highlights = news.filter((n) => n.isHighlight).slice(0, 4)
+
+  // "Mais notícias": tudo que NÃO está no hero (featured, secondary, highlights)
+  const heroSlugs = new Set([
+    ...(featured ? [featured.slug] : []),
+    ...secondary.map((n) => n.slug),
+    ...highlights.map((n) => n.slug),
+  ])
+  const maisNoticias = news.filter((n) => !heroSlugs.has(n.slug)).slice(0, 9)
 
   return (
     <div className="min-h-screen flex flex-col bg-white">
@@ -205,43 +214,8 @@ export default function Home() {
               </div>
             </section>
 
-            {/* Seções auxiliares - apenas placeholders mínimos para navegação */}
-            <section id="quem-somos-section" className="py-12 bg-white scroll-mt-24">
-              <div className="mx-auto max-w-7xl px-4 text-center">
-                <h2 className="text-[#C8102E] font-black text-3xl uppercase mb-4">
-                  Quem Somos
-                </h2>
-                <p className="text-gray-600 max-w-2xl mx-auto">
-                  A TV Goiás é o portal de notícias líder no estado, com cobertura
-                  completa de política, economia, cidades, polícia, esporte e mais.
-                  Levamos notícias do tamanho da verdade aos goianos todos os dias.
-                </p>
-              </div>
-            </section>
-
-            <section id="radio-section" className="py-12 bg-gray-100 scroll-mt-24">
-              <div className="mx-auto max-w-7xl px-4 text-center">
-                <h2 className="text-[#C8102E] font-black text-3xl uppercase mb-4">
-                  Rádio TV Goiás
-                </h2>
-                <p className="text-gray-600 max-w-2xl mx-auto">
-                  Sintonize na nossa rádio para acompanhar as notícias ao vivo,
-                  música e muito mais. 24 horas no ar para você.
-                </p>
-              </div>
-            </section>
-
-            <section id="contato-section" className="py-12 bg-white scroll-mt-24">
-              <div className="mx-auto max-w-7xl px-4 text-center">
-                <h2 className="text-[#C8102E] font-black text-3xl uppercase mb-4">
-                  Contato
-                </h2>
-                <p className="text-gray-600 max-w-2xl mx-auto mb-6">
-                  Entre em contato: (61) 9 8343-7443 (WhatsApp) ou
-                  @tvgoiasoficial (Instagram)
-                </p>
-              </div>
-            </section>
+            {/* Seção Mais Notícias - substitui as seções de texto */}
+            <MaisNoticias news={maisNoticias} onOpenNews={handleOpenNews} />
           </>
         )}
       </main>
