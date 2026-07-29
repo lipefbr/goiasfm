@@ -27,19 +27,33 @@ export default function SetupPage() {
   const [seeding, setSeeding] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
+  const [apiError, setApiError] = useState(false)
 
   useEffect(() => {
     fetch('/api/seed')
-      .then((r) => r.json())
-      .then((data) => {
+      .then(async (r) => {
+        const data = await r.json()
+        if (!r.ok) {
+          throw new Error(data.error || `HTTP ${r.status}`)
+        }
         setStatus(data)
         setLoading(false)
       })
-      .catch(() => {
-        setError('Erro ao verificar banco de dados')
+      .catch((e) => {
+        console.error('Erro ao verificar banco:', e)
+        setError(
+          'Erro ao conectar com o banco de dados. Isso pode acontecer se ' +
+            'o banco ainda não foi inicializado no servidor. Tente ' +
+            'inicializar abaixo — se não funcionar, entre em contato com ' +
+            'o suporte.'
+        )
+        setApiError(true)
         setLoading(false)
       })
   }, [])
+
+  // Mesmo com erro de API, permite tentar o POST /api/seed
+  // (que pode funcionar se o problema for só no GET)
 
   async function handleSeed() {
     if (
@@ -56,10 +70,12 @@ export default function SetupPage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Falha ao inicializar')
       setDone(true)
+      setApiError(false)
       // Atualiza status
       fetch('/api/seed')
         .then((r) => r.json())
         .then(setStatus)
+        .catch(() => {})
     } catch (e) {
       console.error(e)
       setError(
@@ -75,6 +91,90 @@ export default function SetupPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#1a0008] via-[#2a0010] to-[#0a0004]">
         <Loader2 className="w-10 h-10 border-4 border-white/30 border-t-[#C8102E] rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  // Estado: erro de API (banco não inicializado ou indisponível)
+  if (apiError && !done) {
+    return (
+      <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#1a0008] via-[#2a0010] to-[#0a0004]">
+        <header className="bg-black/30 backdrop-blur border-b border-white/10">
+          <div className="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
+            <Link href="/" className="flex items-center">
+              <Image
+                src="/tvgoias-logo.png"
+                alt="TV Goiás"
+                width={100}
+                height={46}
+                priority
+                className="h-10 w-auto object-contain"
+              />
+            </Link>
+            <Link
+              href="/"
+              className="text-sm font-bold text-white/70 hover:text-white transition-colors"
+            >
+              ← Ver Site
+            </Link>
+          </div>
+        </header>
+
+        <main className="flex-1 flex items-center justify-center px-4 py-12">
+          <div className="w-full max-w-lg">
+            <div className="bg-white rounded-lg shadow-2xl p-8">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 rounded-full bg-amber-500 flex items-center justify-center mx-auto mb-4">
+                  <AlertCircle className="w-8 h-8 text-white" />
+                </div>
+                <h1 className="text-2xl font-black text-black">
+                  Banco não inicializado
+                </h1>
+                <p className="text-gray-500 text-sm mt-1">{error}</p>
+              </div>
+
+              {error && error !== 'Erro ao verificar banco de dados' && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded flex items-start gap-2 text-red-700 text-sm">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span className="break-all">{error}</span>
+                </div>
+              )}
+
+              <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-6 text-xs text-blue-800">
+                <strong>O que isso significa?</strong> O banco de dados
+                SQLite precisa ser inicializado no servidor. Clique no
+                botão abaixo para tentar criar as tabelas e popular o
+                banco automaticamente.
+              </div>
+
+              <button
+                onClick={handleSeed}
+                disabled={seeding}
+                className="w-full py-3 rounded bg-[#C8102E] hover:bg-[#a50d26] text-white font-bold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+              >
+                {seeding ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Inicializando...
+                  </>
+                ) : (
+                  <>
+                    <Database className="w-4 h-4" />
+                    Tentar Inicializar Banco
+                  </>
+                )}
+              </button>
+
+              <p className="text-center text-xs text-gray-400 mt-4">
+                Se o erro persistir, verifique se a variável
+                <code className="bg-gray-100 px-1 rounded mx-1">
+                  DATABASE_URL
+                </code>
+                está configurada corretamente no servidor.
+              </p>
+            </div>
+          </div>
+        </main>
       </div>
     )
   }
