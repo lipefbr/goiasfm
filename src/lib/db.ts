@@ -1,5 +1,4 @@
 import { PrismaClient } from '@prisma/client'
-import { execSync } from 'child_process'
 import { existsSync, mkdirSync } from 'fs'
 import path from 'path'
 
@@ -10,40 +9,126 @@ const globalForPrisma = globalThis as unknown as {
 
 function createPrismaClient() {
   return new PrismaClient({
-    // Log só em desenvolvimento para não poluir logs de produção
     log: process.env.NODE_ENV === 'production' ? ['error'] : ['query', 'error'],
   })
 }
 
 /**
- * Garante que o banco de dados SQLite existe e tem as tabelas criadas.
- * Necessário em ambientes de deploy (como Lipe.Host) que rodam `next build`
- * mas não rodam `prisma db push` automaticamente.
- *
- * Esta função é idempotente: só faz algo se o banco não existir ou se
- * faltarem tabelas.
+ * Cria todas as tabelas do schema usando SQL direto via better-sqlite3.
+ * Usa CREATE TABLE IF NOT EXISTS — não destrói tabelas existentes.
  */
-function ensureDatabase() {
+async function createTablesViaSqlite(dbPath: string) {
+  try {
+    // Import dinâmico para evitar erro de lint com require
+    const Database = (await import('better-sqlite3')).default
+    const db = new Database(dbPath)
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS "User" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "email" TEXT NOT NULL,
+        "name" TEXT NOT NULL,
+        "password" TEXT NOT NULL,
+        "role" TEXT NOT NULL DEFAULT 'admin',
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL,
+        CONSTRAINT "User_email_key" UNIQUE ("email")
+      );
+
+      CREATE TABLE IF NOT EXISTS "News" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "title" TEXT NOT NULL,
+        "summary" TEXT NOT NULL,
+        "content" TEXT NOT NULL,
+        "category" TEXT NOT NULL,
+        "imageUrl" TEXT NOT NULL,
+        "date" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "isLive" BOOLEAN NOT NULL DEFAULT false,
+        "isFeatured" BOOLEAN NOT NULL DEFAULT false,
+        "isSecondary" BOOLEAN NOT NULL DEFAULT false,
+        "isHighlight" BOOLEAN NOT NULL DEFAULT false,
+        "hoursAgo" INTEGER NOT NULL DEFAULT 0,
+        "slug" TEXT NOT NULL,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL,
+        CONSTRAINT "News_slug_key" UNIQUE ("slug")
+      );
+
+      CREATE TABLE IF NOT EXISTS "Video" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "title" TEXT NOT NULL,
+        "duration" TEXT NOT NULL,
+        "imageUrl" TEXT NOT NULL,
+        "youtubeId" TEXT,
+        "date" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        "updatedAt" DATETIME NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS "Category" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "name" TEXT NOT NULL,
+        "icon" TEXT NOT NULL,
+        "order" INTEGER NOT NULL DEFAULT 0
+      );
+
+      CREATE TABLE IF NOT EXISTS "Setting" (
+        "id" TEXT NOT NULL PRIMARY KEY,
+        "value" TEXT NOT NULL
+      );
+    `)
+
+    db.close()
+  } catch (e) {
+    console.error('[db] Erro ao criar tabelas via SQLite direto:', e)
+  }
+}
+
+/**
+ * Verifica se as tabelas existem. Se faltar alguma, cria.
+ */
+async function ensureTablesExist(dbPath: string) {
+  try {
+    const Database = (await import('better-sqlite3')).default
+    const db = new Database(dbPath, { readonly: false })
+
+    const result = db.prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name='User'"
+    ).get() as { name: string } | undefined
+
+    if (!result) {
+      console.log('[db] Tabelas não encontradas. Criando...')
+      await createTablesViaSqlite(dbPath)
+    }
+
+    db.close()
+  } catch (e) {
+    console.error('[db] Erro ao verificar tabelas:', e)
+  }
+}
+
+/**
+ * Garante que o banco de dados SQLite existe e tem as tabelas criadas.
+ *
+ * IMPORTANTE: NÃO usa 'prisma db push --accept-data-loss' porque isso
+ * pode apagar dados em produção. Em vez disso, usa SQL CREATE TABLE IF NOT
+ * EXISTS diretamente — só cria tabelas que ainda não existem, preservando
+ * dados existentes.
+ */
+async function ensureDatabase() {
   if (globalForPrisma.__dbInitialized) return
 
   try {
     const dbUrl = process.env.DATABASE_URL || ''
 
-    // Só aplica a lógica de auto-criação para SQLite (file:...)
     if (dbUrl.startsWith('file:')) {
-      // Extrai o caminho do arquivo do DATABASE_URL
-      // Formato: file:./db/custom.db ou file:/abs/path/custom.db
       let dbPath = dbUrl.replace(/^file:/, '')
       if (dbPath.startsWith('./')) dbPath = dbPath.substring(2)
-
-      // Se for caminho relativo, resolve a partir do cwd
       if (!path.isAbsolute(dbPath)) {
         dbPath = path.join(process.cwd(), dbPath)
       }
 
       const dbDir = path.dirname(dbPath)
-
-      // Cria o diretório se não existir
       if (!existsSync(dbDir)) {
         try {
           mkdirSync(dbDir, { recursive: true })
@@ -52,34 +137,25 @@ function ensureDatabase() {
         }
       }
 
-      // Se o arquivo do banco não existe, roda prisma db push para criar
       if (!existsSync(dbPath)) {
-        console.log('[db] Banco não encontrado. Criando tabelas via prisma db push...')
-        try {
-          execSync('npx prisma db push --skip-generate --accept-data-loss', {
-            stdio: 'pipe',
-            cwd: process.cwd(),
-            env: process.env,
-            timeout: 30000,
-          })
-          console.log('[db] Tabelas criadas com sucesso!')
-        } catch (e) {
-          console.error('[db] Erro ao criar tabelas (prisma db push):', e)
-          // Não joga erro — deixa o Prisma tentar conectar e falhar com mensagem clara
-        }
+        console.log('[db] Banco não encontrado. Criando banco e tabelas...')
+        await createTablesViaSqlite(dbPath)
+        console.log('[db] Banco criado com sucesso!')
+      } else {
+        await ensureTablesExist(dbPath)
       }
     }
 
     globalForPrisma.__dbInitialized = true
   } catch (e) {
     console.error('[db] Erro ao verificar/inicializar banco:', e)
-    // Não joga erro — deixa o Prisma tentar
   }
 }
 
-// Garante o banco antes de criar o client
-ensureDatabase()
+// Inicializa o banco de forma assíncrona (não bloqueia o boot)
+ensureDatabase().catch((e) => console.error('[db] init error:', e))
 
 export const db = globalForPrisma.prisma ?? createPrismaClient()
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db
+

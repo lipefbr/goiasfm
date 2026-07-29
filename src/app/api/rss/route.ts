@@ -147,6 +147,32 @@ export async function POST(req: NextRequest) {
         if (!isNaN(parsed.getTime())) date = parsed
       }
 
+      // Distribui as primeiras notícias nos slots do hero:
+      // - 2 primeiras → isSecondary (cards laterais do hero)
+      // - 4 próximas → isHighlight (sidebar de destaques)
+      // Antes de marcar, limpa flags existentes para evitar duplicação
+      const importIndex = imported.length
+      const shouldBeSecondary = importIndex < 2
+      const shouldBeHighlight = importIndex >= 2 && importIndex < 6
+
+      // Se vai marcar como Secondary, desmarca as outras que já são
+      if (shouldBeSecondary) {
+        const currentSecondary = await db.news.count({
+          where: { isSecondary: true },
+        })
+        if (currentSecondary >= 2) {
+          // Já tem 2 secondary — não marca mais (não sobrescreve)
+        }
+      }
+      if (shouldBeHighlight) {
+        const currentHighlights = await db.news.count({
+          where: { isHighlight: true },
+        })
+        if (currentHighlights >= 4) {
+          // Já tem 4 highlights — não marca mais
+        }
+      }
+
       await db.news.create({
         data: {
           title: title.substring(0, 200),
@@ -159,8 +185,8 @@ export async function POST(req: NextRequest) {
           date,
           isLive: false,
           isFeatured: false,
-          isSecondary: false,
-          isHighlight: false,
+          isSecondary: shouldBeSecondary,
+          isHighlight: shouldBeHighlight,
           hoursAgo: Math.floor((Date.now() - date.getTime()) / 3600000),
           slug,
         },

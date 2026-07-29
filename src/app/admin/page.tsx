@@ -513,6 +513,9 @@ export default function AdminPage() {
               </button>
             </div>
 
+            {/* Auto-distribuir notícias no hero */}
+            <AutoDistributeButton onDistributed={loadData} />
+
             {/* Credenciais admin */}
             <div className="bg-gray-900 rounded-lg p-6 mt-6 text-white">
               <h3 className="font-black mb-3">🔑 Credenciais Admin Padrão</h3>
@@ -1330,6 +1333,68 @@ function RssImporter({ onImported }: { onImported: () => void }) {
         importadas aparecem na home e podem ser editadas/excluídas na tab
         "Notícias".
       </div>
+    </div>
+  )
+}
+
+// ============ Componente: Auto-distribuir notícias no Hero ============
+function AutoDistributeButton({ onDistributed }: { onDistributed: () => void }) {
+  const [distributing, setDistributing] = useState(false)
+
+  async function handleDistribute() {
+    if (
+      !confirm(
+        'Vai distribuir automaticamente as 6 notícias mais recentes nos slots do hero:\n\n' +
+          '• 2 mais recentes → cards laterais (isSecondary)\n' +
+          '• 4 seguintes → sidebar de destaques (isHighlight)\n\n' +
+          'As flags atuais serão substituídas. Continuar?'
+      )
+    ) {
+      return
+    }
+    setDistributing(true)
+    try {
+      const res = await fetch('/api/seed', { method: 'PATCH' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Falha')
+      toast.success(data.message)
+      onDistributed()
+    } catch (e) {
+      console.error(e)
+      toast.error(e instanceof Error ? e.message : 'Erro ao distribuir')
+    } finally {
+      setDistributing(false)
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-lg p-6 shadow-sm mt-6">
+      <h3 className="font-black text-black mb-2">
+        Auto-distribuir Notícias no Hero
+      </h3>
+      <p className="text-gray-600 text-sm mb-4">
+        Se as notícias não estão aparecendo no topo do site (cards laterais
+        e sidebar de destaques), clique aqui. O sistema pega as 6 notícias
+        mais recentes e marca as 2 primeiras como destaque secundário e as
+        4 seguintes como destaques laterais.
+      </p>
+      <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4 text-xs text-blue-800">
+        <strong>Quando usar:</strong> depois de importar notícias via RSS,
+        ou se as notícias cadastradas não estiverem aparecendo no hero do
+        site.
+      </div>
+      <button
+        onClick={handleDistribute}
+        disabled={distributing}
+        className="px-6 py-3 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm flex items-center gap-2 transition-colors disabled:opacity-60 shadow"
+      >
+        {distributing ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <Newspaper className="w-4 h-4" />
+        )}
+        {distributing ? 'Distribuindo...' : 'Auto-distribuir no Hero'}
+      </button>
     </div>
   )
 }

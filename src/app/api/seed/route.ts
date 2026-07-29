@@ -448,6 +448,68 @@ export async function POST() {
   }
 }
 
+// PATCH /api/seed - Auto-distribui notícias existentes nos slots do hero
+// Marca as 2 notícias mais recentes como isSecondary e as 4 seguintes como isHighlight
+// Útil após importar RSS ou quando as notícias não estão aparecendo no hero
+export async function PATCH() {
+  const { response } = await requireAuth()
+  if (response) return response
+
+  try {
+    // Limpa flags existentes
+    await db.news.updateMany({
+      where: { OR: [{ isSecondary: true }, { isHighlight: true }, { isFeatured: true }] },
+      data: { isSecondary: false, isHighlight: false, isFeatured: false },
+    })
+
+    // Pega as 6 notícias mais recentes
+    const recent = await db.news.findMany({
+      orderBy: { date: 'desc' },
+      take: 6,
+      select: { id: true },
+    })
+
+    if (recent.length === 0) {
+      return NextResponse.json({
+        success: false,
+        message: 'Nenhuma notícia encontrada no banco. Importe notícias primeiro.',
+      })
+    }
+
+    // Primeira → isFeatured (card principal do hero, se tivesse)
+    // 2 primeiras → isSecondary (cards laterais do hero)
+    // Próximas 4 → isHighlight (sidebar de destaques)
+    const secondaryIds = recent.slice(0, 2).map((n) => n.id)
+    const highlightIds = recent.slice(2, 6).map((n) => n.id)
+
+    if (secondaryIds.length > 0) {
+      await db.news.updateMany({
+        where: { id: { in: secondaryIds } },
+        data: { isSecondary: true },
+      })
+    }
+    if (highlightIds.length > 0) {
+      await db.news.updateMany({
+        where: { id: { in: highlightIds } },
+        data: { isHighlight: true },
+      })
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `${recent.length} notícias distribuídas no hero: ${secondaryIds.length} como destaque secundário, ${highlightIds.length} como destaques laterais.`,
+      secondary: secondaryIds.length,
+      highlights: highlightIds.length,
+    })
+  } catch (error) {
+    console.error('[PATCH /api/seed] error:', error)
+    return NextResponse.json(
+      { error: 'Erro ao distribuir notícias' },
+      { status: 500 }
+    )
+  }
+}
+
 // GET /api/seed - Retorna status do banco (conta registros)
 // Sempre permite GET (não expõe dados sensíveis, só contadores)
 // Usado pela página de login para detectar se o banco está vazio
