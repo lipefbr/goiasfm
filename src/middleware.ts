@@ -14,7 +14,9 @@ export async function middleware(request: NextRequest) {
   // Se não tem token, redireciona para login
   if (!token) {
     const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('callbackUrl', request.url)
+    // Usa caminho relativo '/admin' em vez de request.url absoluta
+    // para evitar problemas com proxies/localhost em produção
+    loginUrl.searchParams.set('callbackUrl', '/admin')
     return NextResponse.redirect(loginUrl)
   }
 

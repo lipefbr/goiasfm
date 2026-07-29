@@ -9,6 +9,26 @@ interface LivePlayerProps {
 }
 
 /**
+ * Detecta se a URL é do YouTube (vídeo ou stream ao vivo).
+ * Aceita formatos:
+ *   - https://www.youtube.com/watch?v=ID
+ *   - https://youtu.be/ID
+ *   - https://www.youtube.com/embed/ID
+ *   - https://www.youtube.com/live/ID
+ */
+function extractYoutubeId(url: string): string | null {
+  if (!url) return null
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/live\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+  ]
+  for (const pattern of patterns) {
+    const match = url.match(pattern)
+    if (match) return match[1]
+  }
+  return null
+}
+
+/**
  * Decide a URL inicial do stream:
  * - Se a página está em HTTPS (preview externo, iframe), usa o proxy interno
  *   para evitar mixed content e problemas de certificado.
@@ -16,14 +36,12 @@ interface LivePlayerProps {
  */
 function getInitialUrl(src: string): { url: string; isProxy: boolean } {
   if (!src) return { url: src, isProxy: false }
+  // YouTube nunca usa proxy
+  if (extractYoutubeId(src)) return { url: src, isProxy: false }
   if (
     typeof window !== 'undefined' &&
     window.location.protocol === 'https:'
   ) {
-    // Sempre usa o proxy em produção (HTTPS) para evitar:
-    // - mixed content (HTTP stream em página HTTPS)
-    // - certificado inválido do stream HTTPS
-    // - CORS
     return { url: `/api/stream?url=${encodeURIComponent(src)}`, isProxy: true }
   }
   return { url: src, isProxy: false }
@@ -36,9 +54,12 @@ export function LivePlayer({ src, className }: LivePlayerProps) {
   const [errorMsg, setErrorMsg] = useState<string>('')
   const [isMuted, setIsMuted] = useState(true)
 
+  // Detecta YouTube
+  const youtubeId = extractYoutubeId(src)
+
   useEffect(() => {
     const video = videoRef.current
-    if (!video || !src) return
+    if (!video || !src || youtubeId) return
 
     setStatus('loading')
     setErrorMsg('')
@@ -57,12 +78,11 @@ export function LivePlayer({ src, className }: LivePlayerProps) {
     video.addEventListener('playing', onPlaying)
     video.addEventListener('canplay', onCanPlay)
 
-    // Determina URL inicial: proxy se HTTPS, direta se HTTP
     const { url: initialUrl, isProxy: initialIsProxy } = getInitialUrl(src)
     const fallbackUrl =
       initialUrl === src
         ? `/api/stream?url=${encodeURIComponent(src)}`
-        : src // se começou no proxy, fallback é a URL direta
+        : src
 
     let currentUrl = initialUrl
     let currentIsProxy = initialIsProxy
@@ -113,7 +133,6 @@ export function LivePlayer({ src, className }: LivePlayerProps) {
 
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              // Se não está no proxy, tenta o proxy
               if (!isProxy && currentUrl !== fallbackUrl) {
                 console.log('Caindo para o proxy HLS...')
                 currentUrl = fallbackUrl
@@ -126,7 +145,6 @@ export function LivePlayer({ src, className }: LivePlayerProps) {
                 }, 500)
                 return
               }
-              // Já está no proxy, tenta recuperar
               if (recoverAttempts < MAX_RECOVER_ATTEMPTS) {
                 recoverAttempts++
                 console.log(`Recuperando rede (${recoverAttempts}/${MAX_RECOVER_ATTEMPTS})...`)
@@ -184,7 +202,6 @@ export function LivePlayer({ src, className }: LivePlayerProps) {
     if (Hls.isSupported()) {
       createHls(initialUrl, initialIsProxy)
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-      // Safari/iOS suporta HLS nativamente
       video.src = initialUrl
       video
         .play()
@@ -210,7 +227,7 @@ export function LivePlayer({ src, className }: LivePlayerProps) {
       video.removeAttribute('src')
       video.load()
     }
-  }, [src])
+  }, [src, youtubeId])
 
   function handleClick() {
     const video = videoRef.current
@@ -230,6 +247,47 @@ export function LivePlayer({ src, className }: LivePlayerProps) {
     }
   }
 
+  // ============ PLAYER YOUTUBE ============
+  if (youtubeId) {
+    // Constrói URL do embed com autoplay + muted (regra do browser)
+    const embedUrl = `https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=${
+      isMuted ? 1 : 0
+    }&playsinline=1&controls=1&modestbranding=1&rel=0&loop=1&playlist=${youtubeId}`
+
+    return (
+      <div
+        className={`relative overflow-hidden bg-black cursor-pointer ${className || ''}`}
+        onClick={() => setIsMuted((m) => !m)}
+      >
+        <iframe
+          key={`${youtubeId}-${isMuted}`}
+          className="absolute inset-0 w-full h-full"
+          src={embedUrl}
+          title="TV Goiás Ao Vivo"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+          frameBorder="0"
+        />
+        {/* Badge AO VIVO - sobreposto */}
+        <div className="absolute top-4 left-4 z-20 flex items-center gap-2 bg-[#C8102E] px-3 py-1.5 rounded text-white text-xs font-bold tracking-wider shadow-lg pointer-events-none">
+          <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+          AO VIVO
+        </div>
+        {/* Indicador mute */}
+        {isMuted && (
+          <div className="absolute bottom-3 right-3 z-20 bg-black/70 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 pointer-events-none">
+            <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z" />
+              <line x1="2" y1="2" x2="22" y2="22" stroke="currentColor" strokeWidth="2" />
+            </svg>
+            Clique para ativar som
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ============ PLAYER HLS ============
   return (
     <div
       className={`relative overflow-hidden bg-black cursor-pointer ${className || ''}`}
@@ -279,7 +337,6 @@ export function LivePlayer({ src, className }: LivePlayerProps) {
           </button>
         </div>
       )}
-      {/* Indicador mute - só quando tocando */}
       {status === 'playing' && isMuted && (
         <div className="absolute bottom-3 right-3 z-20 bg-black/70 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 pointer-events-none">
           <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">

@@ -20,6 +20,7 @@ import {
   Database,
   Lock,
   AlertTriangle,
+  Rss,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
@@ -61,7 +62,7 @@ export default function AdminPage() {
   const [editingSlug, setEditingSlug] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [savingStream, setSavingStream] = useState(false)
-  const [tab, setTab] = useState<'news' | 'stream' | 'system'>('news')
+  const [tab, setTab] = useState<'news' | 'stream' | 'rss' | 'system'>('news')
   const [seeding, setSeeding] = useState(false)
   const [seedStatus, setSeedStatus] = useState<{ counts: Record<string, number>; isEmpty: boolean } | null>(null)
   const { data: session, status } = useSession()
@@ -200,7 +201,7 @@ export default function AdminPage() {
               <span className="hidden sm:inline">Ver Site</span>
             </Link>
             <button
-              onClick={() => signOut({ callbackUrl: '/login' })}
+              onClick={() => signOut({ callbackUrl: '/' })}
               className="text-sm font-bold text-white hover:text-[#C8102E] flex items-center gap-1 transition-colors"
               title="Sair"
             >
@@ -235,6 +236,17 @@ export default function AdminPage() {
           >
             <Video className="w-4 h-4" />
             Vídeo Ao Vivo
+          </button>
+          <button
+            onClick={() => setTab('rss')}
+            className={`px-5 py-3 font-bold text-sm border-b-2 transition-colors flex items-center gap-2 ${
+              tab === 'rss'
+                ? 'border-[#C8102E] text-[#C8102E]'
+                : 'border-transparent text-gray-500 hover:text-black'
+            }`}
+          >
+            <Rss className="w-4 h-4" />
+            Importar RSS
           </button>
           <button
             onClick={() => {
@@ -411,6 +423,9 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+
+        {/* Tab: RSS */}
+        {tab === 'rss' && <RssImporter onImported={loadData} />}
 
         {/* Tab: Sistema */}
         {tab === 'system' && (
@@ -1082,6 +1097,238 @@ function FaviconControl() {
         >
           Restaurar Padrão
         </button>
+      </div>
+    </div>
+  )
+}
+
+// ============ Componente: Importador RSS ============
+const RSS_PRESETS = [
+  {
+    name: 'UOL - Últimas Notícias',
+    url: 'https://rss.uol.com.br/feed/noticias.xml',
+    category: 'Brasil e Mundo',
+  },
+  {
+    name: 'G1 - Brasil',
+    url: 'https://g1.globo.com/rss/g1/brasil/',
+    category: 'Brasil e Mundo',
+  },
+  {
+    name: 'G1 - Política',
+    url: 'https://g1.globo.com/rss/g1/politica/',
+    category: 'Política',
+  },
+  {
+    name: 'G1 - Economia',
+    url: 'https://g1.globo.com/rss/g1/economia/',
+    category: 'Economia',
+  },
+  {
+    name: 'G1 - Educação',
+    url: 'https://g1.globo.com/rss/g1/educacao/',
+    category: 'Educação',
+  },
+  {
+    name: 'G1 - Ciência',
+    url: 'https://g1.globo.com/rss/g1/ciencia/',
+    category: 'Tecnologia',
+  },
+  {
+    name: 'G1 - Música',
+    url: 'https://g1.globo.com/rss/g1/musica/',
+    category: 'Entretenimento',
+  },
+  {
+    name: 'Terra - Brasil',
+    url: 'https://www.terra.com.br/rss/Controller?channelID=0f0a8e108ab7a310VgnVCM3000009af154d0RCRD&ctName=atoma-noticia&vg=browseView',
+    category: 'Brasil e Mundo',
+  },
+]
+
+function RssImporter({ onImported }: { onImported: () => void }) {
+  const [url, setUrl] = useState('')
+  const [category, setCategory] = useState('Brasil e Mundo')
+  const [limit, setLimit] = useState(10)
+  const [importing, setImporting] = useState(false)
+  const [result, setResult] = useState<{
+    imported: number
+    processed: number
+    skipped: string[]
+    message: string
+  } | null>(null)
+
+  async function handleImport(feedUrl?: string, feedCat?: string) {
+    const finalUrl = feedUrl || url
+    const finalCat = feedCat || category
+    if (!finalUrl) {
+      toast.error('Informe a URL do feed RSS')
+      return
+    }
+    setImporting(true)
+    setResult(null)
+    try {
+      const res = await fetch('/api/rss', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          url: finalUrl,
+          category: finalCat,
+          limit,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Falha ao importar')
+      setResult(data)
+      toast.success(data.message)
+      onImported()
+      if (feedUrl) {
+        setUrl(feedUrl)
+        setCategory(feedCat || category)
+      }
+    } catch (e) {
+      console.error(e)
+      toast.error(e instanceof Error ? e.message : 'Erro ao importar RSS')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  return (
+    <div className="max-w-3xl">
+      <h2 className="text-xl font-black text-black mb-2 flex items-center gap-2">
+        <Rss className="w-5 h-5 text-[#C8102E]" />
+        Importar Notícias via RSS
+      </h2>
+      <p className="text-gray-600 text-sm mb-6">
+        Importe notícias automaticamente de feeds RSS (UOL, G1, Terra, etc).
+        As notícias são adicionadas ao banco e aparecem no site. Itens
+        duplicados (mesmo título) são pulados automaticamente.
+      </p>
+
+      {/* Feeds pré-cadastrados */}
+      <div className="bg-white rounded-lg p-6 shadow-sm mb-6">
+        <h3 className="font-black text-black mb-3">Feeds pré-cadastrados</h3>
+        <p className="text-gray-500 text-xs mb-4">
+          Clique para importar as últimas {limit} notícias de cada feed:
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {RSS_PRESETS.map((preset) => (
+            <button
+              key={preset.url}
+              onClick={() => handleImport(preset.url, preset.category)}
+              disabled={importing}
+              className="flex items-center justify-between px-4 py-3 rounded-lg border border-gray-200 hover:border-[#C8102E]/40 hover:bg-gray-50 transition-colors text-left disabled:opacity-60"
+            >
+              <div className="min-w-0">
+                <div className="font-bold text-sm text-black truncate">
+                  {preset.name}
+                </div>
+                <div className="text-xs text-gray-500">{preset.category}</div>
+              </div>
+              <Rss className="w-4 h-4 text-[#C8102E] shrink-0 ml-2" />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Importação personalizada */}
+      <div className="bg-white rounded-lg p-6 shadow-sm mb-6">
+        <h3 className="font-black text-black mb-3">Feed personalizado</h3>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-bold text-black mb-1">
+              URL do Feed RSS
+            </label>
+            <input
+              type="url"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://exemplo.com/feed.xml"
+              className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-[#C8102E] font-mono text-sm"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-black mb-1">
+                Categoria
+              </label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-[#C8102E]"
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-black mb-1">
+                Quantidade (máx)
+              </label>
+              <input
+                type="number"
+                min={1}
+                max={50}
+                value={limit}
+                onChange={(e) => setLimit(parseInt(e.target.value) || 10)}
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-[#C8102E]"
+              />
+            </div>
+          </div>
+          <button
+            onClick={() => handleImport()}
+            disabled={importing || !url}
+            className="w-full py-3 rounded bg-[#C8102E] hover:bg-[#a50d26] text-white font-bold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+          >
+            {importing ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Importando...
+              </>
+            ) : (
+              <>
+                <Rss className="w-4 h-4" />
+                Importar Agora
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Resultado */}
+      {result && (
+        <div className="bg-green-50 border-2 border-green-300 rounded-lg p-6">
+          <h3 className="font-black text-green-900 mb-2 flex items-center gap-2">
+            <CheckCircle className="w-5 h-5" />
+            Importação concluída!
+          </h3>
+          <p className="text-green-800 text-sm mb-3">{result.message}</p>
+          {result.skipped.length > 0 && (
+            <div>
+              <p className="text-xs font-bold text-green-900 mb-1">
+                Itens pulados ({result.skipped.length}):
+              </p>
+              <ul className="text-xs text-green-700 space-y-1 max-h-40 overflow-y-auto">
+                {result.skipped.map((s, i) => (
+                  <li key={i}>• {s}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Dica */}
+      <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded text-sm text-blue-800">
+        <strong>Como funciona:</strong> O sistema busca o feed RSS, extrai
+        título, descrição, imagem e data de cada item, e cria notícias no
+        banco. Itens com título já existente são pulados. As notícias
+        importadas aparecem na home e podem ser editadas/excluídas na tab
+        "Notícias".
       </div>
     </div>
   )

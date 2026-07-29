@@ -10,7 +10,13 @@ import Image from 'next/image'
 export default function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get('callbackUrl') || '/admin'
+  const rawCallback = searchParams.get('callbackUrl') || '/admin'
+  // Sanitiza callbackUrl: se vier URL absoluta com localhost, troca por /admin
+  // Isso evita o bug de em produção redirecionar para localhost
+  const callbackUrl =
+    rawCallback.startsWith('/') && !rawCallback.startsWith('//')
+      ? rawCallback
+      : '/admin'
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
