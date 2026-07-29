@@ -2,6 +2,16 @@
   "name": "tvgoias-portal",
   "version": "1.0.0",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lipefbr/goiasfm.git"
+  },
+  "homepage": "https://github.com/lipefbr/goiasfm",
+  "github": {
+    "owner": "lipefbr",
+    "repo": "goiasfm",
+    "branch": "main"
+  },
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "prisma generate && next build",

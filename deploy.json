@@ -1,0 +1,22 @@
+{
+  "name": "tvgoias-portal",
+  "repository": "https://github.com/lipefbr/goiasfm",
+  "repoUrl": "https://github.com/lipefbr/goiasfm",
+  "github": {
+    "owner": "lipefbr",
+    "repo": "goiasfm",
+    "branch": "main",
+    "url": "https://github.com/lipefbr/goiasfm"
+  },
+  "build": {
+    "command": "bun run build",
+    "installCommand": "bun install",
+    "outputDirectory": ".next"
+  },
+  "framework": "nextjs",
+  "env": {
+    "DATABASE_URL": "file:./db/custom.db",
+    "NEXTAUTH_SECRET": "tvgoias-secret-change-in-production",
+    "NEXTAUTH_URL": "https://goiasfm.lipe.host"
+  }
+}

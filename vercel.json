@@ -3,7 +3,12 @@
   "framework": "nextjs",
   "buildCommand": "bun run build",
   "installCommand": "bun install",
-  "ignoreCommand": "git diff HEAD^ HEAD --quiet ./src ./prisma ./package.json ./next.config.ts",
+  "repoUrl": "https://github.com/lipefbr/goiasfm",
+  "github": {
+    "owner": "lipefbr",
+    "repo": "goiasfm",
+    "branch": "main"
+  },
   "functions": {
     "src/app/api/stream/route.ts": {
       "maxDuration": 30
