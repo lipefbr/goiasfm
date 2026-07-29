@@ -15,6 +15,11 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "**" },
     ],
   },
+  // Define explicitamente o root do Turbopack para evitar warning
+  // de "workspace root inferred" em ambientes de deploy
+  turbopack: {
+    root: __dirname,
+  },
   // Permite que o proxy HLS funcione bem
   experimental: {
     serverActions: {
