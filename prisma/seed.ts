@@ -37,6 +37,15 @@ async function main() {
     },
   })
 
+  // Flag que controla se a página /setup está acessível.
+  // 'false' = página ativa (permite setup). 'true' = página bloqueada.
+  await db.setting.create({
+    data: {
+      id: 'setup_disabled',
+      value: 'false',
+    },
+  })
+
   // ============ NEWS ============
   const news = [
     {

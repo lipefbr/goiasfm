@@ -18,6 +18,8 @@ import {
   LogOut,
   User,
   Database,
+  Lock,
+  AlertTriangle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
@@ -514,6 +516,9 @@ export default function AdminPage() {
                 use um cliente SQLite/Postgres direto no banco.
               </p>
             </div>
+
+            {/* Controle da página /setup */}
+            <SetupControl />
           </div>
         )}
       </main>
@@ -770,6 +775,132 @@ function NewsForm({ slug, onClose, onSaved }: NewsFormProps) {
           </form>
         )}
       </div>
+    </div>
+  )
+}
+
+// ============ Componente: Controle da página /setup ============
+function SetupControl() {
+  const [setupDisabled, setSetupDisabled] = useState<boolean | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [toggling, setToggling] = useState(false)
+
+  const loadStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/seed')
+      if (res.ok) {
+        const data = await res.json()
+        setSetupDisabled(data.setupDisabled === true)
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadStatus()
+  }, [loadStatus])
+
+  async function toggleSetup() {
+    const newValue = !setupDisabled
+    const action = newValue ? 'DESATIVAR' : 'REATIVAR'
+    if (
+      !confirm(
+        `${action} a página de setup (/setup)?\n\n` +
+          (newValue
+            ? '✅ Depois disso, ninguém consegue acessar /setup nem chamar /api/seed sem login. Recomendado após o primeiro setup.'
+            : '⚠️ Isso vai permitir que qualquer um acesse /setup e popule o banco. Use só se precisar refazer o setup.')
+      )
+    ) {
+      return
+    }
+    setToggling(true)
+    try {
+      const res = await fetch('/api/settings/setup_disabled', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: newValue ? 'true' : 'false' }),
+      })
+      if (!res.ok) throw new Error('Falha ao atualizar')
+      toast.success(
+        newValue
+          ? 'Página de setup DESATIVADA. /setup não é mais acessível.'
+          : 'Página de setup REATIVADA. /setup está acessível novamente.'
+      )
+      setSetupDisabled(newValue)
+    } catch (e) {
+      console.error(e)
+      toast.error('Erro ao atualizar configuração')
+    } finally {
+      setToggling(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-lg p-6 shadow-sm mt-6">
+        <Loader2 className="w-5 h-5 border-4 border-[#C8102E] border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className={`rounded-lg p-6 mt-6 border-2 ${
+        setupDisabled
+          ? 'bg-green-50 border-green-300'
+          : 'bg-amber-50 border-amber-300'
+      }`}
+    >
+      <h3 className="font-black text-black mb-2 flex items-center gap-2">
+        {setupDisabled ? (
+          <Lock className="w-5 h-5 text-green-600" />
+        ) : (
+          <AlertTriangle className="w-5 h-5 text-amber-600" />
+        )}
+        Página de Setup (/setup)
+      </h3>
+      <p className="text-gray-700 text-sm mb-4">
+        A página <code className="bg-white px-1.5 py-0.5 rounded">/setup</code>{' '}
+        permite popular o banco de dados sem login. É útil para o primeiro
+        acesso, mas deve ser desativada depois para segurança.
+      </p>
+      <div
+        className={`rounded p-3 mb-4 text-xs ${
+          setupDisabled
+            ? 'bg-green-100 text-green-800'
+            : 'bg-amber-100 text-amber-800'
+        }`}
+      >
+        <strong>Status atual:</strong>{' '}
+        {setupDisabled
+          ? '🔒 DESATIVADA — /setup retorna tela de bloqueio, /api/seed exige login.'
+          : '⚠️ ATIVA — qualquer pessoa pode acessar /setup e popular o banco.'}
+      </div>
+      <button
+        onClick={toggleSetup}
+        disabled={toggling}
+        className={`px-6 py-3 rounded-full font-bold text-sm flex items-center gap-2 transition-colors disabled:opacity-60 shadow ${
+          setupDisabled
+            ? 'bg-amber-600 hover:bg-amber-700 text-white'
+            : 'bg-green-600 hover:bg-green-700 text-white'
+        }`}
+      >
+        {toggling ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : setupDisabled ? (
+          <AlertTriangle className="w-4 h-4" />
+        ) : (
+          <Lock className="w-4 h-4" />
+        )}
+        {toggling
+          ? 'Atualizando...'
+          : setupDisabled
+          ? 'Reativar Página de Setup'
+          : 'Desativar Página de Setup'}
+      </button>
     </div>
   )
 }

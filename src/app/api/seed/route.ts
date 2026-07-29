@@ -25,6 +25,20 @@ export async function POST() {
       if (response) return response
     }
 
+    // Verifica se a página de setup foi desativada pelo admin
+    const setupFlag = await db.setting.findUnique({
+      where: { id: 'setup_disabled' },
+    })
+    if (setupFlag?.value === 'true') {
+      return NextResponse.json(
+        {
+          error:
+            'A página de setup foi desativada pelo administrador. Use o painel /admin para gerenciar dados.',
+        },
+        { status: 403 }
+      )
+    }
+
     const results = {
       users: 0,
       news: 0,
@@ -65,10 +79,25 @@ export async function POST() {
             id: 'site_title',
             value: 'TV Goiás - Notícias do tamanho da verdade',
           },
+          {
+            id: 'setup_disabled',
+            value: 'false',
+          },
         ],
       })
-      results.settings = 2
+      results.settings = 3
     } else {
+      // Garante que a flag setup_disabled existe (caso o banco tenha sido
+      // populado antes dessa feature)
+      const setupFlag = await db.setting.findUnique({
+        where: { id: 'setup_disabled' },
+      })
+      if (!setupFlag) {
+        await db.setting.create({
+          data: { id: 'setup_disabled', value: 'false' },
+        })
+        results.settings += 1
+      }
       results.skipped.push('settings (já existem)')
     }
 
@@ -430,6 +459,7 @@ export async function GET() {
       counts: { users, news, videos, categories, settings },
       isEmpty: users + news + videos + categories + settings === 0,
       needsSetup: users === 0,
+      setupDisabled: (await db.setting.findUnique({ where: { id: 'setup_disabled' } }))?.value === 'true',
     })
   } catch (error) {
     console.error('[GET /api/seed] error:', error)
