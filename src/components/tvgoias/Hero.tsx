@@ -3,6 +3,7 @@
 import { LivePlayer } from './LivePlayer'
 import { Calendar, Clock } from 'lucide-react'
 import Image from 'next/image'
+import { LipeHostBanner } from './LipeHostBanner'
 
 interface NewsItem {
   id: string
@@ -49,7 +50,7 @@ export function Hero({ liveStreamUrl, secondary, highlights }: HeroProps) {
       <div className="relative mx-auto max-w-7xl px-4 py-6">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
           {/* Coluna esquerda: Player AO VIVO (maior) */}
-          <div className="md:col-span-8 lg:col-span-7">
+          <div className="md:col-span-8 lg:col-span-7 flex flex-col gap-4">
             <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-black">
               <LivePlayer src={liveStreamUrl} className="w-full h-full" />
 
@@ -70,6 +71,9 @@ export function Hero({ liveStreamUrl, secondary, highlights }: HeroProps) {
                 />
               </div>
             </div>
+
+            {/* Banner Lipe.Host - embaixo do player (mesma largura) */}
+            <LipeHostBanner variant="compact" />
           </div>
 
           {/* Coluna do meio: 2 cards menores empilhados (desktop) */}

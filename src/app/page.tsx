@@ -174,9 +174,6 @@ export default function Home() {
               highlights={highlights}
             />
 
-            {/* Banner Lipe.Host - entre o hero e a barra preta */}
-            <LipeHostBanner />
-
             <BlackBar />
 
             <section
@@ -200,6 +197,9 @@ export default function Home() {
                 </div>
               </div>
             </section>
+
+            {/* Banner Lipe.Host full-width - acima do Mais Notícias */}
+            <LipeHostBanner variant="full" />
 
             {/* Seção Mais Notícias */}
             <MaisNoticias news={maisNoticias} />
