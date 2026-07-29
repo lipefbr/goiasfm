@@ -35,20 +35,20 @@ export function Header({ onSearch, onNavigate }: HeaderProps) {
       <div className="h-1.5 bg-[#C8102E]" />
 
       <div className="mx-auto max-w-7xl px-4">
-        <div className="flex h-20 items-center justify-between gap-4">
+        <div className="flex h-28 items-center justify-between gap-4">
           {/* Logo TV GOIÁS */}
           <button
             onClick={() => onNavigate('home')}
-            className="flex items-center shrink-0"
+            className="flex items-center shrink-0 py-2"
             aria-label="TV Goiás - Página inicial"
           >
             <Image
               src="/tvgoias-logo.png"
               alt="TV Goiás"
-              width={120}
-              height={56}
+              width={220}
+              height={100}
               priority
-              className="h-12 w-auto object-contain"
+              className="h-20 w-auto object-contain"
             />
           </button>
 

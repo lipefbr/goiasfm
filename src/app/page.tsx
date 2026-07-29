@@ -10,6 +10,7 @@ import { Footer } from '@/components/tvgoias/Footer'
 import { SearchResults } from '@/components/tvgoias/SearchResults'
 import { CategoryList } from '@/components/tvgoias/CategoryList'
 import { MaisNoticias } from '@/components/tvgoias/MaisNoticias'
+import { LipeHostBanner } from '@/components/tvgoias/LipeHostBanner'
 
 interface NewsItem {
   id: string
@@ -172,6 +173,9 @@ export default function Home() {
               secondary={secondary}
               highlights={highlights}
             />
+
+            {/* Banner Lipe.Host - entre o hero e a barra preta */}
+            <LipeHostBanner />
 
             <BlackBar />
 
