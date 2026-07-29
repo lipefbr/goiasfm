@@ -144,6 +144,10 @@ export default function Home() {
   // Notícias para a seção "Mais Notícias": todas as notícias
   const maisNoticias = news
 
+  // Notícias para o Hero (cards laterais + sidebar de destaques)
+  const secondary = news.filter((n) => n.isSecondary).slice(0, 2)
+  const highlights = news.filter((n) => n.isHighlight).slice(0, 4)
+
   return (
     <div className="min-h-screen flex flex-col bg-white">
       <Header onSearch={handleSearch} onNavigate={handleNavigate} />
@@ -159,9 +163,11 @@ export default function Home() {
           />
         ) : (
           <>
-            {/* Hero: apenas o player ao vivo */}
+            {/* Hero: player ao vivo + cards laterais + destaques */}
             <Hero
               liveStreamUrl={settings.live_stream_url || 'http://wz5.dnip.com.br/tvgoias/tvgoias.sdp/playlist.m3u8'}
+              secondary={secondary}
+              highlights={highlights}
             />
 
             <BlackBar />
