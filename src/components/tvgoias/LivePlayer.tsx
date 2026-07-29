@@ -10,6 +10,7 @@ interface LivePlayerProps {
 
 export function LivePlayer({ src, className }: LivePlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const hlsRef = useRef<Hls | null>(null)
   const [status, setStatus] = useState<'loading' | 'playing' | 'error'>('loading')
   const [errorMsg, setErrorMsg] = useState<string>('')
   const [isMuted, setIsMuted] = useState(true)
@@ -18,77 +19,143 @@ export function LivePlayer({ src, className }: LivePlayerProps) {
     const video = videoRef.current
     if (!video || !src) return
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setStatus('loading')
     setErrorMsg('')
 
-    let hls: Hls | null = null
+    let destroyed = false
+    let recoverAttempts = 0
+    const MAX_RECOVER_ATTEMPTS = 5
 
-    // Quando o vídeo começa a tocar de fato (tem frames visíveis), marca como playing
     function onPlaying() {
-      setStatus('playing')
+      if (!destroyed) setStatus('playing')
     }
-    function onWaiting() {
-      // Volta para loading se ficar buffering (mas só se ainda não estiver em error)
-      setStatus((s) => (s === 'error' ? s : 'loading'))
+    function onCanPlay() {
+      if (!destroyed) setStatus('playing')
     }
 
     video.addEventListener('playing', onPlaying)
-    video.addEventListener('canplay', onPlaying)
-    video.addEventListener('waiting', onWaiting)
+    video.addEventListener('canplay', onCanPlay)
 
     if (Hls.isSupported()) {
-      hls = new Hls({
+      // Configuração otimizada para stream ao vivo com descontinuidades
+      // (transições de comercial, mudanças de codec, etc.)
+      const hls = new Hls({
+        // Habilita worker para performance
         enableWorker: true,
-        lowLatencyMode: true,
-        // Configurações para stream ao vivo mais estável
+        // Modo live: não usar lowLatencyMode pois o stream não é LL-HLS
+        lowLatencyMode: false,
+        // Duração infinita para streams ao vivo
         liveDurationInfinity: true,
+        // Não guardar buffer antigo
         liveBackBufferLength: 0,
+        // Tolerância a descontinuidades (extensões EXT-X-DISCONTINUITY)
+        // Aumenta o tempo máximo de saltos para evitar erros fatais
+        // em transições de comercial
+        stretchShortVideoTrack: true,
+        // Configurações de buffer para stream ao vivo
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
+        // Tolerância a atrasos (live sync)
+        liveSyncDurationCount: 3,
+        // Tenta carregar mesmo com erros de manifesto
+        manifestLoadingMaxRetry: 4,
+        manifestLoadingRetryDelay: 1000,
+        levelLoadingMaxRetry: 4,
+        levelLoadingRetryDelay: 1000,
+        // Tolerância a erros de fragmento (chunks .ts)
+        fragLoadingMaxRetry: 6,
+        fragLoadingRetryDelay: 500,
+        fragLoadingMaxRetryTimeout: 8000,
+        // Recuperação automática de erros de mídia
+        // (não marcar como fatal imediatamente)
+        maxSeekHole: 2,
       })
+      hlsRef.current = hls
+
       hls.loadSource(src)
       hls.attachMedia(video)
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        // Tenta dar play; se bloquear por autoplay, o usuário vê o loading
-        // e o clique no player resolve
+        if (destroyed) return
         video
           .play()
-          .then(() => setStatus('playing'))
+          .then(() => {
+            if (!destroyed) setStatus('playing')
+          })
           .catch((err) => {
-            console.warn('Autoplay bloqueado:', err)
+            console.warn('Autoplay bloqueado - usuário precisa clicar:', err)
             // Não marca como erro - o usuário pode clicar para tocar
-            setStatus('playing')
+            if (!destroyed) setStatus('playing')
           })
       })
 
       hls.on(Hls.Events.ERROR, (_event, data) => {
+        if (destroyed) return
+
+        // Loga o erro mas só trava se for realmente fatal e irrecuperável
         if (data.fatal) {
-          console.error('HLS fatal error:', data)
+          console.warn('HLS fatal error:', data.type, data.details)
+
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              // Tenta recuperar erro de rede
-              try {
-                hls?.startLoad()
-              } catch {
+              // Recupera erro de rede (fallback de conexão)
+              if (recoverAttempts < MAX_RECOVER_ATTEMPTS) {
+                recoverAttempts++
+                console.log(`Tentando recuperar rede (${recoverAttempts}/${MAX_RECOVER_ATTEMPTS})...`)
+                setTimeout(() => {
+                  if (!destroyed) hls.startLoad()
+                }, 1000)
+              } else {
                 setErrorMsg(
-                  'Erro de rede ao carregar o stream ao vivo. Verifique sua conexão.'
+                  'Stream temporariamente indisponível. Atualize a página.'
                 )
                 setStatus('error')
               }
               break
+
             case Hls.ErrorTypes.MEDIA_ERROR:
-              try {
-                hls?.recoverMediaError()
-              } catch {
-                setErrorMsg('Erro de mídia ao carregar o stream.')
+              // Recupera erro de mídia (descontinuidade de codec, etc.)
+              if (recoverAttempts < MAX_RECOVER_ATTEMPTS) {
+                recoverAttempts++
+                console.log(`Tentando recuperar mídia (${recoverAttempts}/${MAX_RECOVER_ATTEMPTS})...`)
+                setTimeout(() => {
+                  if (!destroyed) {
+                    try {
+                      hls.recoverMediaError()
+                    } catch (e) {
+                      console.error('Falha ao recuperar mídia:', e)
+                    }
+                  }
+                }, 500)
+              } else {
+                setErrorMsg('Erro de mídia no stream. Atualize a página.')
                 setStatus('error')
               }
               break
+
             default:
-              setErrorMsg('Não foi possível carregar o stream ao vivo.')
-              setStatus('error')
+              // Outros tipos de erro - tenta reiniciar o stream uma vez
+              if (recoverAttempts < 2) {
+                recoverAttempts++
+                console.log('Reiniciando stream após erro fatal...')
+                setTimeout(() => {
+                  if (!destroyed) {
+                    hls.destroy()
+                    const newHls = new Hls(hls.config)
+                    hlsRef.current = newHls
+                    newHls.loadSource(src)
+                    newHls.attachMedia(video)
+                  }
+                }, 1000)
+              } else {
+                setErrorMsg('Não foi possível carregar o stream ao vivo.')
+                setStatus('error')
+              }
               break
           }
+        } else {
+          // Erros não-fatais: apenas loga em debug
+          console.debug('HLS non-fatal error:', data.details)
         }
       })
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
@@ -96,19 +163,24 @@ export function LivePlayer({ src, className }: LivePlayerProps) {
       video.src = src
       video
         .play()
-        .then(() => setStatus('playing'))
-        .catch(() => setStatus('playing'))
+        .then(() => {
+          if (!destroyed) setStatus('playing')
+        })
+        .catch(() => {
+          if (!destroyed) setStatus('playing')
+        })
     } else {
       setErrorMsg('Seu navegador não suporta HLS.')
       setStatus('error')
     }
 
     return () => {
+      destroyed = true
       video.removeEventListener('playing', onPlaying)
-      video.removeEventListener('canplay', onPlaying)
-      video.removeEventListener('waiting', onWaiting)
-      if (hls) {
-        hls.destroy()
+      video.removeEventListener('canplay', onCanPlay)
+      if (hlsRef.current) {
+        hlsRef.current.destroy()
+        hlsRef.current = null
       }
       video.removeAttribute('src')
       video.load()
@@ -121,10 +193,26 @@ export function LivePlayer({ src, className }: LivePlayerProps) {
     if (video.paused) {
       video.play().catch(() => {})
     } else {
-      // Toggle mute no clique
       const newMuted = !isMuted
       setIsMuted(newMuted)
       video.muted = newMuted
+    }
+  }
+
+  function handleManualRetry() {
+    // Recarrega o stream manualmente
+    const video = videoRef.current
+    if (!video) return
+    setStatus('loading')
+    setErrorMsg('')
+    if (hlsRef.current) {
+      hlsRef.current.destroy()
+    }
+    // Re-trigger do useEffect forçando nova instância
+    video.load()
+    // Recarrega a página de forma simples e confiável
+    if (typeof window !== 'undefined') {
+      window.location.reload()
     }
   }
 
@@ -148,7 +236,7 @@ export function LivePlayer({ src, className }: LivePlayerProps) {
         </div>
       )}
       {status === 'error' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-10 p-6 text-center">
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black z-10 p-6 text-center pointer-events-auto">
           <div className="w-12 h-12 rounded-full bg-[#C8102E] flex items-center justify-center mb-3">
             <svg
               className="w-6 h-6 text-white"
@@ -165,7 +253,16 @@ export function LivePlayer({ src, className }: LivePlayerProps) {
             </svg>
           </div>
           <p className="text-white text-sm font-bold mb-1">Stream indisponível</p>
-          <p className="text-gray-400 text-xs max-w-md">{errorMsg}</p>
+          <p className="text-gray-400 text-xs max-w-md mb-3">{errorMsg}</p>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              handleManualRetry()
+            }}
+            className="bg-[#C8102E] hover:bg-[#a50d26] text-white text-xs font-bold px-4 py-2 rounded-full transition-colors"
+          >
+            Tentar novamente
+          </button>
         </div>
       )}
       {/* Indicador mute - só quando tocando */}
