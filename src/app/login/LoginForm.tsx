@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Loader2, LogIn, AlertCircle } from 'lucide-react'
+import { Loader2, LogIn, AlertCircle, Database, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 
@@ -16,6 +16,48 @@ export default function LoginForm() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
+  // Detecta se o banco está vazio (precisa de setup inicial)
+  const [needsSetup, setNeedsSetup] = useState(false)
+  const [setupLoading, setSetupLoading] = useState(false)
+  const [setupDone, setSetupDone] = useState(false)
+
+  useEffect(() => {
+    // Verifica se o banco precisa de setup inicial
+    fetch('/api/seed')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.needsSetup) {
+          setNeedsSetup(true)
+        }
+      })
+      .catch(() => {
+        // Ignora erro — pode ser que a rota não exista em dev local
+      })
+  }, [])
+
+  async function handleSetup() {
+    if (!confirm('Vai inicializar o banco com dados de demonstração.\n\nIsso cria:\n• Usuário admin (admin@tvgoias.com / admin123)\n• 25 notícias\n• 4 vídeos\n• 10 categorias\n• Link do stream ao vivo\n\nContinuar?')) {
+      return
+    }
+    setSetupLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/seed', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Falha ao inicializar')
+      setSetupDone(true)
+      setNeedsSetup(false)
+      // Pré-preenche o formulário com as credenciais padrão
+      setEmail('admin@tvgoias.com')
+      setPassword('admin123')
+    } catch (e) {
+      console.error(e)
+      setError('Erro ao inicializar banco. Tente novamente.')
+    } finally {
+      setSetupLoading(false)
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -83,6 +125,59 @@ export default function LoginForm() {
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded flex items-center gap-2 text-red-700 text-sm">
                 <AlertCircle className="w-4 h-4 shrink-0" />
                 {error}
+              </div>
+            )}
+
+            {/* Aviso: banco vazio, precisa de setup inicial */}
+            {needsSetup && !setupDone && (
+              <div className="mb-4 p-4 bg-amber-50 border-2 border-amber-300 rounded-lg">
+                <div className="flex items-start gap-2 mb-3">
+                  <Database className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-amber-900 text-sm">
+                      Banco de dados vazio
+                    </p>
+                    <p className="text-amber-700 text-xs mt-1">
+                      Parece que é a primeira vez. Inicialize o banco para
+                      criar o usuário admin e dados de demonstração.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleSetup}
+                  disabled={setupLoading}
+                  className="w-full py-2.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-60"
+                >
+                  {setupLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Inicializando...
+                    </>
+                  ) : (
+                    <>
+                      <Database className="w-4 h-4" />
+                      Inicializar Banco
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* Sucesso: banco inicializado */}
+            {setupDone && (
+              <div className="mb-4 p-4 bg-green-50 border-2 border-green-300 rounded-lg">
+                <div className="flex items-start gap-2 mb-2">
+                  <CheckCircle className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-bold text-green-900 text-sm">
+                      Banco inicializado com sucesso!
+                    </p>
+                    <p className="text-green-700 text-xs mt-1">
+                      Credenciais pré-preenchidas abaixo. Clique em
+                      "Entrar" para acessar o painel.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
 

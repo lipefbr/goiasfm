@@ -4,12 +4,27 @@ import { requireAuth } from '@/lib/requireAuth'
 import bcrypt from 'bcryptjs'
 
 // POST /api/seed - Popula o banco com dados de demonstração
-// Requer login admin. Só popula se o banco estiver vazio (não sobrescreve).
+//
+// REGRA DE ACESSO (resolve o problema "ovo e galinha" do primeiro deploy):
+// - Se o banco NÃO tem nenhum usuário: permite POST sem login (setup inicial)
+// - Se o banco JÁ tem usuário: exige login admin
+//
+// Isso é seguro porque:
+// 1. A janela sem-auth só existe quando o banco está completamente vazio
+// 2. Assim que o primeiro admin é criado, a rota passa a exigir auth
+// 3. O seed só preenche tabelas vazias (não sobrescreve dados)
 export async function POST() {
-  const { response } = await requireAuth()
-  if (response) return response
-
   try {
+    // Verifica se já existe algum usuário no banco
+    const userCount = await db.user.count()
+    const isEmpty = userCount === 0
+
+    // Se o banco não está vazio, exige autenticação
+    if (!isEmpty) {
+      const { response } = await requireAuth()
+      if (response) return response
+    }
+
     const results = {
       users: 0,
       news: 0,
@@ -17,6 +32,7 @@ export async function POST() {
       categories: 0,
       settings: 0,
       skipped: [] as string[],
+      firstSetup: isEmpty,
     }
 
     // ============ USER ADMIN ============
@@ -398,10 +414,9 @@ export async function POST() {
 }
 
 // GET /api/seed - Retorna status do banco (conta registros)
+// Sempre permite GET (não expõe dados sensíveis, só contadores)
+// Usado pela página de login para detectar se o banco está vazio
 export async function GET() {
-  const { response } = await requireAuth()
-  if (response) return response
-
   try {
     const [users, news, videos, categories, settings] = await Promise.all([
       db.user.count(),
@@ -414,6 +429,7 @@ export async function GET() {
     return NextResponse.json({
       counts: { users, news, videos, categories, settings },
       isEmpty: users + news + videos + categories + settings === 0,
+      needsSetup: users === 0,
     })
   } catch (error) {
     console.error('[GET /api/seed] error:', error)
