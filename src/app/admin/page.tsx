@@ -17,6 +17,7 @@ import {
   ArrowLeft,
   LogOut,
   User,
+  Database,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
@@ -58,7 +59,9 @@ export default function AdminPage() {
   const [editingSlug, setEditingSlug] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [savingStream, setSavingStream] = useState(false)
-  const [tab, setTab] = useState<'news' | 'stream'>('news')
+  const [tab, setTab] = useState<'news' | 'stream' | 'system'>('news')
+  const [seeding, setSeeding] = useState(false)
+  const [seedStatus, setSeedStatus] = useState<{ counts: Record<string, number>; isEmpty: boolean } | null>(null)
   const { data: session, status } = useSession()
 
   // Redireciona para login se não estiver autenticado
@@ -121,6 +124,40 @@ export default function AdminPage() {
       toast.error('Erro ao salvar link')
     } finally {
       setSavingStream(false)
+    }
+  }
+
+  // Carrega status do banco quando muda para tab sistema
+  async function loadSeedStatus() {
+    try {
+      const res = await fetch('/api/seed')
+      if (res.ok) {
+        const data = await res.json()
+        setSeedStatus(data)
+      }
+    } catch (e) {
+      console.error(e)
+    }
+  }
+
+  // Popula o banco com dados de demonstração
+  async function handleSeed() {
+    if (!confirm('Popular o banco com dados de demonstração?\n\nIsso vai criar:\n• 1 usuário admin (admin@tvgoias.com)\n• 25 notícias\n• 4 vídeos\n• 10 categorias\n• 2 configurações\n\nSó preenche o que estiver vazio (não sobrescreve dados existentes).')) {
+      return
+    }
+    setSeeding(true)
+    try {
+      const res = await fetch('/api/seed', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Falha ao popular')
+      toast.success(`Banco populado! ${data.results.news} notícias, ${data.results.videos} vídeos, ${data.results.categories} categorias.`)
+      loadData()
+      loadSeedStatus()
+    } catch (e) {
+      console.error(e)
+      toast.error('Erro ao popular banco')
+    } finally {
+      setSeeding(false)
     }
   }
 
@@ -196,6 +233,20 @@ export default function AdminPage() {
           >
             <Video className="w-4 h-4" />
             Vídeo Ao Vivo
+          </button>
+          <button
+            onClick={() => {
+              setTab('system')
+              loadSeedStatus()
+            }}
+            className={`px-5 py-3 font-bold text-sm border-b-2 transition-colors flex items-center gap-2 ${
+              tab === 'system'
+                ? 'border-[#C8102E] text-[#C8102E]'
+                : 'border-transparent text-gray-500 hover:text-black'
+            }`}
+          >
+            <Database className="w-4 h-4" />
+            Sistema
           </button>
         </div>
 
@@ -355,6 +406,113 @@ export default function AdminPage() {
               <strong>Dica:</strong> O stream é reproduzido via HLS.js, compatível com
               Chrome, Firefox, Edge e Safari. Para transmissões ao vivo, mantenha o
               formato <code className="bg-white px-1 rounded">.m3u8</code>.
+            </div>
+          </div>
+        )}
+
+        {/* Tab: Sistema */}
+        {tab === 'system' && (
+          <div className="max-w-3xl">
+            <h2 className="text-xl font-black text-black mb-2">Sistema</h2>
+            <p className="text-gray-600 text-sm mb-6">
+              Gerencie os dados do banco. Use para popular o banco em produção
+              após o primeiro deploy.
+            </p>
+
+            {/* Status atual do banco */}
+            <div className="bg-white rounded-lg p-6 shadow-sm mb-6">
+              <h3 className="font-black text-black mb-4 flex items-center gap-2">
+                <Database className="w-5 h-5 text-[#C8102E]" />
+                Status do Banco de Dados
+              </h3>
+              {seedStatus ? (
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                  <div className="bg-gray-50 rounded p-3 text-center">
+                    <div className="text-2xl font-black text-[#C8102E]">{seedStatus.counts.users}</div>
+                    <div className="text-xs text-gray-500 mt-1">Usuários</div>
+                  </div>
+                  <div className="bg-gray-50 rounded p-3 text-center">
+                    <div className="text-2xl font-black text-[#C8102E]">{seedStatus.counts.news}</div>
+                    <div className="text-xs text-gray-500 mt-1">Notícias</div>
+                  </div>
+                  <div className="bg-gray-50 rounded p-3 text-center">
+                    <div className="text-2xl font-black text-[#C8102E]">{seedStatus.counts.videos}</div>
+                    <div className="text-xs text-gray-500 mt-1">Vídeos</div>
+                  </div>
+                  <div className="bg-gray-50 rounded p-3 text-center">
+                    <div className="text-2xl font-black text-[#C8102E]">{seedStatus.counts.categories}</div>
+                    <div className="text-xs text-gray-500 mt-1">Categorias</div>
+                  </div>
+                  <div className="bg-gray-50 rounded p-3 text-center">
+                    <div className="text-2xl font-black text-[#C8102E]">{seedStatus.counts.settings}</div>
+                    <div className="text-xs text-gray-500 mt-1">Configs</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-8 text-center">
+                  <Loader2 className="w-6 h-6 border-4 border-[#C8102E] border-t-transparent rounded-full animate-spin mx-auto" />
+                  <p className="text-gray-500 text-sm mt-2">Carregando...</p>
+                </div>
+              )}
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={loadSeedStatus}
+                  className="text-xs font-bold text-gray-500 hover:text-black"
+                >
+                  ↻ Atualizar
+                </button>
+              </div>
+            </div>
+
+            {/* Popular banco */}
+            <div className="bg-white rounded-lg p-6 shadow-sm">
+              <h3 className="font-black text-black mb-2">Popular Banco com Dados de Demonstração</h3>
+              <p className="text-gray-600 text-sm mb-4">
+                Cria dados iniciais para o site funcionar: 1 usuário admin
+                (admin@tvgoias.com / admin123), 25 notícias, 4 vídeos, 10
+                categorias e 2 configurações (link do stream).
+              </p>
+              <div className="bg-amber-50 border border-amber-200 rounded p-3 mb-4 text-xs text-amber-800">
+                <strong>⚠️ Importante:</strong> Só preenche tabelas vazias. Não
+                sobrescreve nem apaga dados existentes. Seguro para usar em
+                produção.
+              </div>
+              <button
+                onClick={handleSeed}
+                disabled={seeding}
+                className="px-6 py-3 rounded-full bg-[#C8102E] hover:bg-[#a50d26] text-white font-bold text-sm flex items-center gap-2 transition-colors disabled:opacity-60 shadow"
+              >
+                {seeding ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Populando banco...
+                  </>
+                ) : (
+                  <>
+                    <Database className="w-4 h-4" />
+                    Popular Banco Agora
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Credenciais admin */}
+            <div className="bg-gray-900 rounded-lg p-6 mt-6 text-white">
+              <h3 className="font-black mb-3">🔑 Credenciais Admin Padrão</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Email:</span>
+                  <code className="bg-black/40 px-2 py-0.5 rounded">admin@tvgoias.com</code>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Senha:</span>
+                  <code className="bg-black/40 px-2 py-0.5 rounded">admin123</code>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-4">
+                Troque a senha após o primeiro login. Para criar mais usuários,
+                use um cliente SQLite/Postgres direto no banco.
+              </p>
             </div>
           </div>
         )}
