@@ -2,6 +2,7 @@
 
 import { Search, Facebook, Instagram, Youtube, Menu, X } from 'lucide-react'
 import { useState, FormEvent } from 'react'
+import Image from 'next/image'
 
 interface HeaderProps {
   onSearch: (q: string) => void
@@ -38,16 +39,17 @@ export function Header({ onSearch, onNavigate }: HeaderProps) {
           {/* Logo TV GOIÁS */}
           <button
             onClick={() => onNavigate('home')}
-            className="flex items-center gap-2 shrink-0"
+            className="flex items-center shrink-0"
             aria-label="TV Goiás - Página inicial"
           >
-            <div className="relative w-12 h-12 rounded-full bg-[#C8102E] flex items-center justify-center shadow-md">
-              <span className="text-white font-black text-2xl leading-none">G</span>
-            </div>
-            <div className="flex flex-col leading-none">
-              <span className="text-[10px] font-semibold text-black tracking-wider">TV</span>
-              <span className="text-xl font-black text-black tracking-tight">GOIÁS</span>
-            </div>
+            <Image
+              src="/tvgoias-logo.png"
+              alt="TV Goiás"
+              width={120}
+              height={56}
+              priority
+              className="h-12 w-auto object-contain"
+            />
           </button>
 
           {/* Menu centralizado - desktop */}

@@ -5,6 +5,7 @@ import { signIn } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Loader2, LogIn, AlertCircle } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -46,14 +47,15 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-[#1a0008] via-[#2a0010] to-[#0a0004]">
       <header className="bg-black/30 backdrop-blur border-b border-white/10">
         <div className="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-full bg-[#C8102E] flex items-center justify-center">
-              <span className="text-white font-black text-lg">G</span>
-            </div>
-            <div>
-              <span className="text-[10px] font-semibold text-white/70 tracking-wider block leading-none">TV</span>
-              <span className="text-lg font-black text-white tracking-tight leading-none">GOIÁS</span>
-            </div>
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/tvgoias-logo.png"
+              alt="TV Goiás"
+              width={100}
+              height={46}
+              priority
+              className="h-10 w-auto object-contain"
+            />
           </Link>
           <Link
             href="/"

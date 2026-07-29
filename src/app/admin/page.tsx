@@ -19,6 +19,7 @@ import {
   User,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import Image from 'next/image'
 
 interface NewsItem {
   id: string
@@ -129,11 +130,16 @@ export default function AdminPage() {
       <header className="bg-black text-white sticky top-0 z-30">
         <div className="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#C8102E] flex items-center justify-center">
-              <span className="text-white font-black text-lg">G</span>
-            </div>
+            <Image
+              src="/tvgoias-logo.png"
+              alt="TV Goiás"
+              width={100}
+              height={46}
+              priority
+              className="h-10 w-auto object-contain"
+            />
             <div>
-              <h1 className="font-black text-lg leading-none">TV Goiás Admin</h1>
+              <h1 className="font-black text-lg leading-none">Admin</h1>
               <p className="text-xs text-gray-400 mt-0.5">Painel de Administração</p>
             </div>
           </div>

@@ -2,6 +2,7 @@
 
 import { LivePlayer } from './LivePlayer'
 import { Calendar, Clock } from 'lucide-react'
+import Image from 'next/image'
 
 interface NewsItem {
   id: string
@@ -59,11 +60,14 @@ export function Hero({ liveStreamUrl, secondary, highlights }: HeroProps) {
               </div>
 
               {/* Badge TV GOIÁS - sobreposto */}
-              <div className="absolute top-4 right-4 z-20 bg-black/70 backdrop-blur px-3 py-1.5 rounded text-white text-xs font-bold tracking-wider shadow-lg pointer-events-none flex items-center gap-2">
-                <div className="w-5 h-5 rounded-full bg-[#C8102E] flex items-center justify-center">
-                  <span className="text-white font-black text-[10px]">G</span>
-                </div>
-                TV GOIÁS
+              <div className="absolute top-4 right-4 z-20 bg-black/70 backdrop-blur px-3 py-1.5 rounded shadow-lg pointer-events-none flex items-center gap-2">
+                <Image
+                  src="/tvgoias-logo.png"
+                  alt="TV Goiás"
+                  width={50}
+                  height={20}
+                  className="h-5 w-auto object-contain"
+                />
               </div>
             </div>
           </div>
