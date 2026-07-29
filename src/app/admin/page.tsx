@@ -517,6 +517,9 @@ export default function AdminPage() {
               </p>
             </div>
 
+            {/* Controle de favicon */}
+            <FaviconControl />
+
             {/* Controle da página /setup */}
             <SetupControl />
           </div>
@@ -901,6 +904,185 @@ function SetupControl() {
           ? 'Reativar Página de Setup'
           : 'Desativar Página de Setup'}
       </button>
+    </div>
+  )
+}
+
+// ============ Componente: Controle de Favicon ============
+function FaviconControl() {
+  const [faviconUrl, setFaviconUrl] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  const loadFavicon = useCallback(async () => {
+    try {
+      const res = await fetch('/api/settings')
+      if (res.ok) {
+        const data = await res.json()
+        const url = data.settings?.favicon_url || '/favicon.png'
+        setFaviconUrl(url)
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadFavicon()
+  }, [loadFavicon])
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const res = await fetch('/api/settings/favicon_url', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: faviconUrl }),
+      })
+      if (!res.ok) throw new Error('Falha ao salvar')
+      toast.success('Favicon atualizado! Recarregue a página (Ctrl+F5) para ver.')
+    } catch (e) {
+      console.error(e)
+      toast.error('Erro ao salvar favicon')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleReset() {
+    if (!confirm('Restaurar favicon padrão da TV Goiás?')) return
+    setFaviconUrl('/favicon.png')
+    setSaving(true)
+    try {
+      const res = await fetch('/api/settings/favicon_url', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value: '/favicon.png' }),
+      })
+      if (!res.ok) throw new Error('Falha')
+      toast.success('Favicon restaurado para o padrão.')
+    } catch (e) {
+      console.error(e)
+      toast.error('Erro ao restaurar')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-lg p-6 shadow-sm mt-6">
+        <Loader2 className="w-5 h-5 border-4 border-[#C8102E] border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  // Preview do favicon atual
+  const previewUrl = faviconUrl || '/favicon.png'
+
+  return (
+    <div className="bg-white rounded-lg p-6 shadow-sm mt-6">
+      <h3 className="font-black text-black mb-2 flex items-center gap-2">
+        <Image
+          src={previewUrl}
+          alt="Favicon"
+          width={24}
+          height={24}
+          className="w-6 h-6 object-contain"
+          unoptimized
+        />
+        Favicon e Ícone de Compartilhamento
+      </h3>
+      <p className="text-gray-600 text-sm mb-4">
+        Esta imagem aparece na aba do navegador, nos favoritos e quando
+        alguém compartilha o link (WhatsApp, Telegram, Facebook, etc).
+        Recomendado: PNG quadrado, no mínimo 256x256px.
+      </p>
+
+      {/* Preview grande */}
+      <div className="bg-gray-50 rounded-lg p-6 mb-4 flex items-center justify-center gap-8">
+        <div className="text-center">
+          <div className="w-24 h-24 bg-white rounded-lg shadow flex items-center justify-center mb-2 overflow-hidden">
+            <Image
+              src={previewUrl}
+              alt="Preview grande"
+              width={96}
+              height={96}
+              className="w-20 h-20 object-contain"
+              unoptimized
+            />
+          </div>
+          <span className="text-xs text-gray-500">96px</span>
+        </div>
+        <div className="text-center">
+          <div className="w-12 h-12 bg-white rounded-lg shadow flex items-center justify-center mb-2 overflow-hidden">
+            <Image
+              src={previewUrl}
+              alt="Preview médio"
+              width={48}
+              height={48}
+              className="w-10 h-10 object-contain"
+              unoptimized
+            />
+          </div>
+          <span className="text-xs text-gray-500">48px</span>
+        </div>
+        <div className="text-center">
+          <div className="w-8 h-8 bg-white rounded shadow flex items-center justify-center mb-2 overflow-hidden">
+            <Image
+              src={previewUrl}
+              alt="Preview pequeno"
+              width={32}
+              height={32}
+              className="w-7 h-7 object-contain"
+              unoptimized
+            />
+          </div>
+          <span className="text-xs text-gray-500">32px</span>
+        </div>
+      </div>
+
+      <label className="block text-sm font-bold text-black mb-1">
+        URL da Imagem do Favicon
+      </label>
+      <input
+        type="text"
+        value={faviconUrl}
+        onChange={(e) => setFaviconUrl(e.target.value)}
+        placeholder="/favicon.png ou https://exemplo.com/logo.png"
+        className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-[#C8102E] font-mono text-sm mb-3"
+      />
+      <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4 text-xs text-blue-800">
+        <strong>Dica:</strong> você pode usar uma URL externa (ex: Imgur,
+        GitHub) ou fazer upload para o servidor e usar o caminho{' '}
+        <code className="bg-white px-1 rounded">/favicon.png</code>.
+        Para voltar ao padrão da TV Goiás, use{' '}
+        <code className="bg-white px-1 rounded">/favicon.png</code>.
+      </div>
+
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="px-6 py-2.5 rounded-full bg-[#C8102E] hover:bg-[#a50d26] text-white font-bold text-sm flex items-center gap-2 transition-colors disabled:opacity-60 shadow"
+        >
+          {saving ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Save className="w-4 h-4" />
+          )}
+          {saving ? 'Salvando...' : 'Salvar Favicon'}
+        </button>
+        <button
+          onClick={handleReset}
+          disabled={saving || faviconUrl === '/favicon.png'}
+          className="px-4 py-2.5 rounded-full text-gray-600 hover:text-black text-sm font-bold transition-colors disabled:opacity-40"
+        >
+          Restaurar Padrão
+        </button>
+      </div>
     </div>
   )
 }

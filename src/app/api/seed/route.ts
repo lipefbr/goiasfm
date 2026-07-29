@@ -83,20 +83,26 @@ export async function POST() {
             id: 'setup_disabled',
             value: 'false',
           },
+          {
+            id: 'favicon_url',
+            value: '/favicon.png',
+          },
         ],
       })
-      results.settings = 3
+      results.settings = 4
     } else {
-      // Garante que a flag setup_disabled existe (caso o banco tenha sido
-      // populado antes dessa feature)
-      const setupFlag = await db.setting.findUnique({
-        where: { id: 'setup_disabled' },
-      })
-      if (!setupFlag) {
-        await db.setting.create({
-          data: { id: 'setup_disabled', value: 'false' },
-        })
-        results.settings += 1
+      // Garante que as flags críticas existem (caso o banco tenha sido
+      // populado antes dessas features serem adicionadas)
+      const flagsToEnsure = [
+        { id: 'setup_disabled', value: 'false' },
+        { id: 'favicon_url', value: '/favicon.png' },
+      ]
+      for (const flag of flagsToEnsure) {
+        const existing = await db.setting.findUnique({ where: { id: flag.id } })
+        if (!existing) {
+          await db.setting.create({ data: flag })
+          results.settings += 1
+        }
       }
       results.skipped.push('settings (já existem)')
     }

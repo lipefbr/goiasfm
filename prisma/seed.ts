@@ -46,6 +46,15 @@ async function main() {
     },
   })
 
+  // URL do favicon (ícone do navegador e compartilhamento).
+  // Padrão: /favicon.png (logo da TV Goiás em /public)
+  await db.setting.create({
+    data: {
+      id: 'favicon_url',
+      value: '/favicon.png',
+    },
+  })
+
   // ============ NEWS ============
   const news = [
     {
