@@ -165,7 +165,10 @@ export default function Home() {
           <>
             {/* Hero: player ao vivo + cards laterais + destaques */}
             <Hero
-              liveStreamUrl={settings.live_stream_url || 'http://wz5.dnip.com.br/tvgoias/tvgoias.sdp/playlist.m3u8'}
+              liveStreamUrl={
+                settings.live_stream_url ||
+                'https://wz5.dnip.com.br/tvgoias/tvgoias.sdp/playlist.m3u8'
+              }
               secondary={secondary}
               highlights={highlights}
             />

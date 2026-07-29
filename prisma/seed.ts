@@ -12,7 +12,7 @@ async function main() {
   await db.setting.create({
     data: {
       id: 'live_stream_url',
-      value: 'http://wz5.dnip.com.br/tvgoias/tvgoias.sdp/playlist.m3u8',
+      value: 'https://wz5.dnip.com.br/tvgoias/tvgoias.sdp/playlist.m3u8',
     },
   })
 

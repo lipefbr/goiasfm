@@ -8,6 +8,27 @@ interface LivePlayerProps {
   className?: string
 }
 
+/**
+ * Decide a URL inicial do stream:
+ * - Se a página está em HTTPS (preview externo, iframe), usa o proxy interno
+ *   para evitar mixed content e problemas de certificado.
+ * - Se a página está em HTTP (dev local), usa a URL direta.
+ */
+function getInitialUrl(src: string): { url: string; isProxy: boolean } {
+  if (!src) return { url: src, isProxy: false }
+  if (
+    typeof window !== 'undefined' &&
+    window.location.protocol === 'https:'
+  ) {
+    // Sempre usa o proxy em produção (HTTPS) para evitar:
+    // - mixed content (HTTP stream em página HTTPS)
+    // - certificado inválido do stream HTTPS
+    // - CORS
+    return { url: `/api/stream?url=${encodeURIComponent(src)}`, isProxy: true }
+  }
+  return { url: src, isProxy: false }
+}
+
 export function LivePlayer({ src, className }: LivePlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const hlsRef = useRef<Hls | null>(null)
@@ -36,43 +57,39 @@ export function LivePlayer({ src, className }: LivePlayerProps) {
     video.addEventListener('playing', onPlaying)
     video.addEventListener('canplay', onCanPlay)
 
-    if (Hls.isSupported()) {
-      // Configuração otimizada para stream ao vivo com descontinuidades
-      // (transições de comercial, mudanças de codec, etc.)
+    // Determina URL inicial: proxy se HTTPS, direta se HTTP
+    const { url: initialUrl, isProxy: initialIsProxy } = getInitialUrl(src)
+    const fallbackUrl =
+      initialUrl === src
+        ? `/api/stream?url=${encodeURIComponent(src)}`
+        : src // se começou no proxy, fallback é a URL direta
+
+    let currentUrl = initialUrl
+    let currentIsProxy = initialIsProxy
+
+    function createHls(url: string, isProxy: boolean) {
+      if (destroyed) return
       const hls = new Hls({
-        // Habilita worker para performance
         enableWorker: true,
-        // Modo live: não usar lowLatencyMode pois o stream não é LL-HLS
         lowLatencyMode: false,
-        // Duração infinita para streams ao vivo
         liveDurationInfinity: true,
-        // Não guardar buffer antigo
         liveBackBufferLength: 0,
-        // Tolerância a descontinuidades (extensões EXT-X-DISCONTINUITY)
-        // Aumenta o tempo máximo de saltos para evitar erros fatais
-        // em transições de comercial
         stretchShortVideoTrack: true,
-        // Configurações de buffer para stream ao vivo
         maxBufferLength: 30,
         maxMaxBufferLength: 60,
-        // Tolerância a atrasos (live sync)
         liveSyncDurationCount: 3,
-        // Tenta carregar mesmo com erros de manifesto
         manifestLoadingMaxRetry: 4,
         manifestLoadingRetryDelay: 1000,
         levelLoadingMaxRetry: 4,
         levelLoadingRetryDelay: 1000,
-        // Tolerância a erros de fragmento (chunks .ts)
         fragLoadingMaxRetry: 6,
         fragLoadingRetryDelay: 500,
         fragLoadingMaxRetryTimeout: 8000,
-        // Recuperação automática de erros de mídia
-        // (não marcar como fatal imediatamente)
         maxSeekHole: 2,
       })
       hlsRef.current = hls
 
-      hls.loadSource(src)
+      hls.loadSource(url)
       hls.attachMedia(video)
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -83,8 +100,7 @@ export function LivePlayer({ src, className }: LivePlayerProps) {
             if (!destroyed) setStatus('playing')
           })
           .catch((err) => {
-            console.warn('Autoplay bloqueado - usuário precisa clicar:', err)
-            // Não marca como erro - o usuário pode clicar para tocar
+            console.warn('Autoplay bloqueado:', err)
             if (!destroyed) setStatus('playing')
           })
       })
@@ -92,32 +108,41 @@ export function LivePlayer({ src, className }: LivePlayerProps) {
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (destroyed) return
 
-        // Loga o erro mas só trava se for realmente fatal e irrecuperável
         if (data.fatal) {
-          console.warn('HLS fatal error:', data.type, data.details)
+          console.warn('HLS fatal error:', data.type, data.details, { url, isProxy })
 
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              // Recupera erro de rede (fallback de conexão)
+              // Se não está no proxy, tenta o proxy
+              if (!isProxy && currentUrl !== fallbackUrl) {
+                console.log('Caindo para o proxy HLS...')
+                currentUrl = fallbackUrl
+                currentIsProxy = true
+                try {
+                  hls.destroy()
+                } catch {}
+                setTimeout(() => {
+                  if (!destroyed) createHls(fallbackUrl, true)
+                }, 500)
+                return
+              }
+              // Já está no proxy, tenta recuperar
               if (recoverAttempts < MAX_RECOVER_ATTEMPTS) {
                 recoverAttempts++
-                console.log(`Tentando recuperar rede (${recoverAttempts}/${MAX_RECOVER_ATTEMPTS})...`)
+                console.log(`Recuperando rede (${recoverAttempts}/${MAX_RECOVER_ATTEMPTS})...`)
                 setTimeout(() => {
                   if (!destroyed) hls.startLoad()
                 }, 1000)
               } else {
-                setErrorMsg(
-                  'Stream temporariamente indisponível. Atualize a página.'
-                )
+                setErrorMsg('Stream temporariamente indisponível. Atualize a página.')
                 setStatus('error')
               }
               break
 
             case Hls.ErrorTypes.MEDIA_ERROR:
-              // Recupera erro de mídia (descontinuidade de codec, etc.)
               if (recoverAttempts < MAX_RECOVER_ATTEMPTS) {
                 recoverAttempts++
-                console.log(`Tentando recuperar mídia (${recoverAttempts}/${MAX_RECOVER_ATTEMPTS})...`)
+                console.log(`Recuperando mídia (${recoverAttempts}/${MAX_RECOVER_ATTEMPTS})...`)
                 setTimeout(() => {
                   if (!destroyed) {
                     try {
@@ -134,33 +159,33 @@ export function LivePlayer({ src, className }: LivePlayerProps) {
               break
 
             default:
-              // Outros tipos de erro - tenta reiniciar o stream uma vez
-              if (recoverAttempts < 2) {
-                recoverAttempts++
-                console.log('Reiniciando stream após erro fatal...')
+              if (!isProxy && currentUrl !== fallbackUrl) {
+                console.log('Caindo para o proxy HLS após erro fatal...')
+                currentUrl = fallbackUrl
+                currentIsProxy = true
+                try {
+                  hls.destroy()
+                } catch {}
                 setTimeout(() => {
-                  if (!destroyed) {
-                    hls.destroy()
-                    const newHls = new Hls(hls.config)
-                    hlsRef.current = newHls
-                    newHls.loadSource(src)
-                    newHls.attachMedia(video)
-                  }
-                }, 1000)
-              } else {
-                setErrorMsg('Não foi possível carregar o stream ao vivo.')
-                setStatus('error')
+                  if (!destroyed) createHls(fallbackUrl, true)
+                }, 500)
+                return
               }
+              setErrorMsg('Não foi possível carregar o stream ao vivo.')
+              setStatus('error')
               break
           }
         } else {
-          // Erros não-fatais: apenas loga em debug
           console.debug('HLS non-fatal error:', data.details)
         }
       })
+    }
+
+    if (Hls.isSupported()) {
+      createHls(initialUrl, initialIsProxy)
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       // Safari/iOS suporta HLS nativamente
-      video.src = src
+      video.src = initialUrl
       video
         .play()
         .then(() => {
@@ -200,17 +225,6 @@ export function LivePlayer({ src, className }: LivePlayerProps) {
   }
 
   function handleManualRetry() {
-    // Recarrega o stream manualmente
-    const video = videoRef.current
-    if (!video) return
-    setStatus('loading')
-    setErrorMsg('')
-    if (hlsRef.current) {
-      hlsRef.current.destroy()
-    }
-    // Re-trigger do useEffect forçando nova instância
-    video.load()
-    // Recarrega a página de forma simples e confiável
     if (typeof window !== 'undefined') {
       window.location.reload()
     }
